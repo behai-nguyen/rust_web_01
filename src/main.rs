@@ -18,11 +18,6 @@ pub struct AppState {
     db: Pool<MySql>,
 }
 
-/* 
-Post: http://localhost:7000/data/employees / Body: {"last_name": "%chi", "first_name": "%ak"}
-Get: http://localhost:7000/data/employees/%chi/%ak
-Get: http://localhost:7000/ui/employees/%chi/%ak
-*/
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
