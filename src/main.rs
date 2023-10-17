@@ -1,0 +1,64 @@
+/* Date Created: 11/10/2023. */
+
+//! Web application entry function.
+
+use dotenv::dotenv;
+use sqlx::{Pool, MySql};
+use async_std::task;
+use actix_web::{http::header, web, App, HttpServer};
+use actix_cors::Cors;
+
+mod config;
+mod database;
+mod utils;
+mod models;
+mod handlers;
+
+pub struct AppState {
+    db: Pool<MySql>,
+}
+
+/* 
+Post: http://localhost:7000/data/employees / Body: {"last_name": "%chi", "first_name": "%ak"}
+Get: http://localhost:7000/data/employees/%chi/%ak
+Get: http://localhost:7000/ui/employees/%chi/%ak
+*/
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+    let config = config::Config::init();
+
+    let pool = task::block_on(database::get_mysql_pool(config.max_connections, &config.database_url));
+
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin(&config.allowed_origin)
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_headers(vec![
+                header::CONTENT_TYPE,
+                header::AUTHORIZATION,
+                header::ACCEPT,
+            ])
+            .max_age(config.max_age)
+            .supports_credentials();
+
+        App::new()
+            .app_data(web::Data::new(AppState {
+                db: pool.clone()
+            }))
+            .wrap(cors)
+            .service(
+                web::scope("/data")
+                    .service(handlers::employees_json1)
+                    .service(handlers::employees_json2),
+            )
+            .service(
+                web::scope("/ui")
+                    .service(handlers::employees_html1)
+                    .service(handlers::employees_html2),
+            )            
+    })
+    .bind(("0.0.0.0", 5000))?
+    .run()
+    .await
+}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+	<meta name="author" content="https://behainguyen.wordpress.com/">
+    <title>Employees</title>
+</head>
+<body>
+<h1>Employees</h1>
+
+{% if employees|length > 1 %}
+    <table>
+        <tr>	
+            <th>Emp. No.</th>		
+            <th>Birth Date</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Gender</th>
+            <th>Hire Date</th>
+        </tr>
+		
+    {% for employee in employees %}
+        <tr>	
+            <td>{{ employee.emp_no }}</td>
+            <td>{{ employee.birth_date }}</td>
+            <td>{{ employee.first_name }}</td>
+            <td>{{ employee.last_name }}</td>
+            <td>{{ employee.gender }}</td>
+            <td>{{ employee.hire_date }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+{% endif %}
+</body>
+</html>
