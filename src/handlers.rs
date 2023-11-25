@@ -3,12 +3,14 @@
 //! Application HTTP request handlers.
 
 use async_std::task;
-use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder, web::ReqData};
 
 use tera::{Context, Tera};
 
 use crate::models::{self, Employee};
 use models::{get_employees, EmployeeSearch};
+
+use crate::middleware::Msg;
 
 /// Attempts to retrieve employee records based on partial last name and partial 
 /// first name, then returns matched records as JSON. Calls to [`get_employees`]
@@ -161,5 +163,42 @@ pub async fn employees_html2(
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(render_employees_template(&query_result))    
+        .body(render_employees_template(&query_result))
+}
+
+/// [SayHi](`super::middleware::SayHi`) middleware resource endpoint handler.
+/// Extracts the string message attached to the request extension, if found, returns 
+/// the message as HTML response. If no message found Otherwise returns HTTP 500 with
+/// text ``"No message found."``.
+///
+/// # Arguments
+/// 
+/// * `msg` - [Request-local data extractor](https://docs.rs/actix-web/latest/actix_web/web/struct.ReqData.html).
+/// Arbitrary data attached to an individual request by the ``SayHi`` middleware.
+/// 
+/// # Usage Example
+/// 
+/// * Route: ``http://localhost:5000/helloemployee/%chi/%ak``
+/// * Route: ``http://localhost:5000/helloemployee/%xxx/%xxx``
+/// * Method: ``GET``
+/// 
+/// # To trigger HTTP 500:
+/// 
+/// * In the ``middleware.rs`` module, under the service trait, in
+/// ``fn call(&self, req: ServiceRequest) -> Self::Future {``, comment out
+/// ``req.extensions_mut().insert(Msg(hello_msg.to_owned()));``. Recompile,
+/// then run with either of the examples listed above. We should get HTTP 500.
+///
+pub async fn hi_first_employee_found(msg: Option<ReqData<Msg>>) -> impl Responder {
+    match msg {
+        None => return HttpResponse::InternalServerError().body("No message found."),
+
+        Some(msg_data) => {
+            let Msg(message) = msg_data.into_inner();
+
+            HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .body(format!("<h1>{}</h1>", message))    
+        },
+    }
 }
