@@ -14,6 +14,8 @@ mod utils;
 mod models;
 mod handlers;
 
+mod middleware;
+
 pub struct AppState {
     db: Pool<MySql>,
 }
@@ -51,7 +53,12 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/ui")
                     .service(handlers::employees_html1)
                     .service(handlers::employees_html2),
-            )            
+            )
+            .service(
+                web::resource("/helloemployee/{last_name}/{first_name}")
+                    .wrap(middleware::SayHi)
+                    .route(web::get().to(handlers::hi_first_employee_found))
+            )
     })
     .bind(("0.0.0.0", 5000))?
     .run()
