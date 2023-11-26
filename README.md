@@ -12,6 +12,14 @@ The code version for the above post has been tagged with **v0.1.0**. It can be c
 git clone -b v0.1.0 https://github.com/behai-nguyen/rust_web_01.git
 ```
 
+* [Rust: learning actix-web middleware 01.](https://behainguyen.wordpress.com/2023/11/26/rust-learning-actix-web-middleware-01/)
+
+The code version for the above post has been tagged with **v0.2.0**. It can be cloned with:
+
+```
+git clone -b v0.2.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
