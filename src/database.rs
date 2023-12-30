@@ -22,7 +22,7 @@ use sqlx::{mysql::MySqlPoolOptions, Pool, MySql};
 /// ```
 /// use async_std::task;
 /// 
-/// mod database;
+/// use learn_actix_web::database;
 /// //...
 /// let pool = task::block_on(database::get_mysql_pool(5, "mysql://root:pcb.2176310315865259@localhost:3306/employees"));
 /// ```

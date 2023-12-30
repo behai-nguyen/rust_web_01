@@ -23,7 +23,7 @@ impl Config {
     /// ```
     /// use dotenv::dotenv;
     /// 
-    /// mod config;
+    /// use learn_actix_web::config;
     /// // ...
     /// dotenv().ok();
     /// let config = config::Config::init();
