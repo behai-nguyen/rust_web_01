@@ -20,6 +20,14 @@ The code version for the above post has been tagged with **v0.2.0**. It can be c
 git clone -b v0.2.0 https://github.com/behai-nguyen/rust_web_01.git
 ```
 
+* [Rust: retrofit integration tests to an existing actix-web application.](https://behainguyen.wordpress.com/2023/12/31/rust-retrofit-integration-tests-to-an-existing-actix-web-application/)
+
+The code version for the above post has been tagged with **v0.3.0**. It can be cloned with:
+
+```
+git clone -b v0.3.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
