@@ -5,14 +5,14 @@
 use std::net::TcpListener;
 use learn_actix_web::run;
 
-pub fn spawn_app() -> String {
+pub async fn spawn_app() -> String {
     let listener = TcpListener::bind("0.0.0.0:0")
         .expect("Failed to bind random port");
     
     // We retrieve the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
 
-    let server = run(listener).expect("Failed to create server");
+    let server = run(listener).await.unwrap();
     let _ = tokio::spawn(server);
 
     format!("http://127.0.0.1:{}", port)
