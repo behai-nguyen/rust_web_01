@@ -6,9 +6,10 @@
 use std::net::TcpListener;
 use dotenv::dotenv;
 use sqlx::{Pool, MySql};
-use async_std::task;
-use actix_web::{http::header, web, App, HttpServer};
+use actix_web::{cookie::Key, http::header, web, App, HttpServer};
 use actix_web::dev::Server;
+use actix_session::{storage::RedisSessionStore, SessionMiddleware};
+use actix_identity::IdentityMiddleware;
 use actix_cors::Cors;
 
 pub mod config;
@@ -30,11 +31,16 @@ pub struct AppState {
 /// - [`core::result::Result`]. On successful [`actix_web::dev::Server`]. On failure 
 /// [`std::io::Error`].
 /// 
-pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
+pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
     dotenv().ok();
     let config = config::Config::init();
 
-    let pool = task::block_on(database::get_mysql_pool(config.max_connections, &config.database_url));
+    let pool = database::get_mysql_pool(config.max_connections, &config.database_url).await;
+
+    let secret_key = Key::generate();
+    let redis_store = RedisSessionStore::new("redis://127.0.0.1:6379")
+        .await
+        .unwrap();
 
     let server = HttpServer::new(move || {
         let cors = Cors::default()
@@ -52,6 +58,11 @@ pub fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
             .app_data(web::Data::new(AppState {
                 db: pool.clone()
             }))
+            .wrap(IdentityMiddleware::default())
+            .wrap(SessionMiddleware::new(
+                    redis_store.clone(),
+                    secret_key.clone()
+            ))
             .wrap(cors)
             .service(
                 web::scope("/data")
