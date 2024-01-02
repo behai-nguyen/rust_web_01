@@ -12,5 +12,6 @@ async fn main() -> Result<(), std::io::Error> {
     let port = listener.local_addr().unwrap().port();
     println!("Server is listening on port {}", port);
 
-    run(listener)?.await
+    let server = run(listener).await.unwrap();
+    server.await
 }
