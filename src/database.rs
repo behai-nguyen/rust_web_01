@@ -17,14 +17,28 @@ use sqlx::{mysql::MySqlPoolOptions, Pool, MySql};
 /// 
 /// - [`sqlx::Pool`]&lt;[`sqlx::MySql`]&gt;
 /// 
-/// # Example
+/// # Example, in a synchronous function:
 /// 
 /// ```
 /// use async_std::task;
 /// 
 /// use learn_actix_web::database;
-/// //...
-/// let pool = task::block_on(database::get_mysql_pool(5, "mysql://root:pcb.2176310315865259@localhost:3306/employees"));
+/// 
+/// fn test() {
+///     //...
+///     let pool = task::block_on(database::get_mysql_pool(5, "mysql://root:pcb.2176310315865259@localhost:3306/employees"));
+/// }
+/// ```
+/// 
+/// # Example, in an asynchronous function:
+/// 
+/// ```
+/// use learn_actix_web::database;
+/// 
+/// async fn test() {
+///     //...
+///     let pool = database::get_mysql_pool(5, "mysql://root:pcb.2176310315865259@localhost:3306/employees").await;
+/// }
 /// ```
 pub async fn get_mysql_pool(max_connections: u32, database_url: &str) -> Pool<MySql> {
     let _ = match MySqlPoolOptions::new()
