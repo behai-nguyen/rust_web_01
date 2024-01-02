@@ -43,7 +43,7 @@ async fn dummy_test() {
 /// * Body: ``{"last_name": "%chi", "first_name": "%ak"}``
 #[actix_web::test]
 async fn post_employees_json1() {
-    let root_url = &spawn_app();
+    let root_url = &spawn_app().await;
 
     let client = reqwest::Client::new();
 
@@ -79,7 +79,7 @@ async fn post_employees_json1() {
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_employees_json2() {
-    let root_url = &spawn_app();
+    let root_url = &spawn_app().await;
 
     let client = reqwest::Client::new();
 
@@ -112,7 +112,7 @@ async fn get_employees_json2() {
 /// * Body: ``last_name=%chi&first_name=%ak``
 #[actix_web::test]
 async fn post_employees_html1() {
-    let root_url = &spawn_app();    
+    let root_url = &spawn_app().await;
 
     let client = reqwest::Client::new();
 
@@ -143,7 +143,7 @@ async fn post_employees_html1() {
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_employees_html2() {
-    let root_url = &spawn_app();
+    let root_url = &spawn_app().await;
 
     let client = reqwest::Client::new();
 
@@ -169,7 +169,7 @@ async fn get_employees_html2() {
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_helloemployee_has_data() {
-    let root_url = &spawn_app();
+    let root_url = &spawn_app().await;
 
     let client = reqwest::Client::new();
 
@@ -222,7 +222,7 @@ async fn get_helloemployee_has_data() {
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_helloemployee_no_data() {
-    let root_url = &spawn_app();
+    let root_url = &spawn_app().await;
 
     let client = reqwest::Client::new();
 
