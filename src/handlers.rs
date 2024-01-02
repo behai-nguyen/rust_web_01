@@ -2,7 +2,6 @@
 
 //! Application HTTP request handlers.
 
-use async_std::task;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder, web::ReqData};
 
 use tera::{Context, Tera};
@@ -40,7 +39,7 @@ pub async fn employees_json1(
     app_state: web::Data<super::AppState>,
     body: web::Json<EmployeeSearch>
 ) -> impl Responder {
-    let query_result = task::block_on(get_employees(&app_state.db, &body.last_name, &body.first_name));
+    let query_result = get_employees(&app_state.db, &body.last_name, &body.first_name).await;
     web::Json(query_result)
 }
 
@@ -70,7 +69,7 @@ pub async fn employees_json2(
     let last_name: String = req.match_info().get("last_name").unwrap().parse::<String>().unwrap();
     let first_name: String = req.match_info().get("first_name").unwrap().parse::<String>().unwrap();
 
-    let query_result = task::block_on(get_employees(&app_state.db, &last_name, &first_name));
+    let query_result = get_employees(&app_state.db, &last_name, &first_name).await;
     web::Json(query_result)
 }
 
@@ -126,7 +125,7 @@ pub async fn employees_html1(
     app_state: web::Data<super::AppState>,
     body: web::Form<EmployeeSearch>
 ) -> impl Responder {
-    let query_result = task::block_on(get_employees(&app_state.db, &body.last_name, &body.first_name));
+    let query_result = get_employees(&app_state.db, &body.last_name, &body.first_name).await;
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -159,7 +158,7 @@ pub async fn employees_html2(
     let last_name: String = req.match_info().get("last_name").unwrap().parse::<String>().unwrap();
     let first_name: String = req.match_info().get("first_name").unwrap().parse::<String>().unwrap();
 
-    let query_result = task::block_on(get_employees(&app_state.db, &last_name, &first_name));
+    let query_result = get_employees(&app_state.db, &last_name, &first_name).await;
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
