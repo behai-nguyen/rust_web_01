@@ -17,7 +17,7 @@ use crate::utils;
 #[derive(FromRow, Debug, Deserialize, Serialize)]
 pub struct Employee {
     pub emp_no: i32,
-    pub email: String,
+    // pub email: String,
     #[serde(with = "utils::australian_date_format")]
     pub birth_date: Date,
     pub first_name: String,
@@ -106,12 +106,12 @@ pub async fn get_employees(
     .map(|row: sqlx::mysql::MySqlRow| { 
         Employee {
             emp_no: row.get(0),
-            email: row.get(1),
-            birth_date: row.get(3),
-            first_name: row.get(4),
-            last_name: row.get(5),
-            gender: row.get(6),
-            hire_date: row.get(7)
+            // email: row.get(1),
+            birth_date: row.get(1),
+            first_name: row.get(2),
+            last_name: row.get(3),
+            gender: row.get(4),
+            hire_date: row.get(5)
         }
     })
     .fetch_all(pool).await.unwrap()
@@ -148,6 +148,7 @@ mod tests {
     use super::*;
 
     #[test]
+    /*
     fn test_employee_serde() {
         let json_str = r#"{
             "emp_no": 67115,
@@ -167,7 +168,26 @@ mod tests {
         let serialized = serde_json::to_string_pretty(&emp).unwrap();
         assert_eq!(serialized, expected_str);
     }
-
+    */
+    fn test_employee_serde() {
+        let json_str = r#"{
+            "emp_no": 67115,
+            "birth_date": "14/12/1955",
+            "first_name": "Siamak",
+            "last_name": "Bernardeschi",
+            "gender": "M",
+            "hire_date": "26/04/1985"
+        }"#;
+    
+        let emp: Employee = serde_json::from_str(json_str).unwrap();
+        assert_eq!(emp.birth_date, date!(1955 - 12 - 14));
+        assert_eq!(emp.hire_date, date!(1985 - 04 - 26));
+    
+        let expected_str = String::from("{\n  \"emp_no\": 67115,\n  \"birth_date\": \"14/12/1955\",\n  \"first_name\": \"Siamak\",\n  \"last_name\": \"Bernardeschi\",\n  \"gender\": \"M\",\n  \"hire_date\": \"26/04/1985\"\n}");
+        let serialized = serde_json::to_string_pretty(&emp).unwrap();
+        assert_eq!(serialized, expected_str);
+    }
+    
     #[test]
     fn test_employee_serde_failure() {
         let json_str = r#"{
