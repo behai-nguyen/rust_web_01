@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+	<meta name="author" content="behai_nguyen@hotmail.com">
+    <title>Rust Web 1 | Login</title>
+	
+	<script>
+		// $( document ).ready( () => {
+		//	$( '#loginForm' ).parsley().on( 'field:validated', () => {} )
+		//	.on( 'form:submit', () => { return $('.parsley-error').length === 0 });
+		// });
+	</script>
+	
+</head>
+
+<body>
+	<div>
+		<form method="POST" action="/api/login" id="loginForm">
+			<h1 class="h3 mb-3 fw-normal">Please login</h1>
+
+			{% if message is defined %}
+			    <h2>{{ message }}</h2>
+			{% endif %}
+
+			<div>
+				<label for="email">Email address:</label>
+				<input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required value="chirstian.koblick.10004@gmail.com">
+			</div>
+
+			<div>
+				<label for="password">Password:</label>
+				<input type="password" class="form-control" id="password" name="password" placeholder="Password" required value="password">
+			</div>
+			<button type="submit">Login</button>
+		</form>
+	</div>
+</body>
+</html>
