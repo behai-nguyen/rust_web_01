@@ -17,7 +17,7 @@ use crate::utils;
 #[derive(FromRow, Debug, Deserialize, Serialize)]
 pub struct Employee {
     pub emp_no: i32,
-    // pub email: String,
+    pub email: String,
     #[serde(with = "utils::australian_date_format")]
     pub birth_date: Date,
     pub first_name: String,
@@ -27,10 +27,23 @@ pub struct Employee {
     pub hire_date: Date,
 }
 
+/// Represents a login submission. That is, user login request data are capture into this struct.
 #[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct EmployeeLogin {
+    /// User input. The exact email which will be matched against ``employees.email``.
     pub email: String,
+    /// User input. The exact plain text password. If there is matched on ``email``, this 
+    /// password will be hashed, then compared to the one retrieved from database.
     pub password: String,
+}
+
+/// Represents a login success request. **Work in progress**.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LoginSuccess {
+    /// Logged in user email.
+    pub email: String,
+    /// The login authentication token.
+    pub token: String,
 }
 
 /// An auxiliary structure which represents: 
@@ -106,27 +119,69 @@ pub async fn get_employees(
     .map(|row: sqlx::mysql::MySqlRow| { 
         Employee {
             emp_no: row.get(0),
-            // email: row.get(1),
-            birth_date: row.get(1),
-            first_name: row.get(2),
-            last_name: row.get(3),
-            gender: row.get(4),
-            hire_date: row.get(5)
+            email: row.get(1),
+            birth_date: row.get(3),
+            first_name: row.get(4),
+            last_name: row.get(5),
+            gender: row.get(6),
+            hire_date: row.get(7)
         }
     })
     .fetch_all(pool).await.unwrap()
 }
 
-/* 
-    None,
-    
-    Some(
-        EmployeeLogin {
-            email: "zdislav.nastansky.10191@gmail.com",
-            password: "$argon2id$v=19$m=16,t=2,p=1$cTJhazRqRWRHR3NYbEJ2Zg$z7pMnKzV0eU5eJkdq+hycQ",
-        },
-    )    
-*/
+/// Attempts to retrieve a single record from the ``employees`` table based on 
+/// the exact email.
+/// 
+/// # Arguments
+/// 
+/// * `email` - the exact email to match against ``employees.email``.
+/// 
+/// # Return
+/// 
+/// - [`std::option::Option`]&lt;[`EmployeeLogin`]&gt; - that is, a single row
+/// if found, otherwise nothing.
+/// 
+/// # Example, in a synchronous function:
+/// 
+/// ```
+/// use async_std::task;
+/// 
+/// use learn_actix_web::database;
+/// use learn_actix_web::models::select_employee;
+/// 
+/// fn main() {
+///     let pool = task::block_on(database::get_mysql_pool(5, "mysql://root:pcb.2176310315865259@localhost:3306/employees"));
+///     let query_result = task::block_on(select_employee(&pool, "chirstian.koblick.10004@gmail.com"));
+/// 
+///     if let Some(emp_login) = query_result {
+///         println!("Employee Login {:#?}", emp_login);
+///     }
+///     else {
+///         println!("No employee found.");
+///     }
+/// }
+/// ```
+/// 
+/// # Example, in an asynchronous function:
+/// 
+/// ```
+/// use learn_actix_web::database;
+/// use learn_actix_web::models::select_employee;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let pool = database::get_mysql_pool(5, "mysql://root:pcb.2176310315865259@localhost:3306/employees").await;
+///     let query_result = select_employee(&pool, "chirstian.koblick.10004@gmail.com").await;
+///
+///     if let Some(emp_login) = query_result {
+///         println!("Employee Login {:#?}", emp_login);
+///     }
+///     else {
+///         println!("No employee found.");
+///     }
+/// }
+/// ```
 pub async fn select_employee(
     pool: &Pool<MySql>,
     email: &str ) -> Option<EmployeeLogin> {
@@ -148,7 +203,6 @@ mod tests {
     use super::*;
 
     #[test]
-    /*
     fn test_employee_serde() {
         let json_str = r#"{
             "emp_no": 67115,
@@ -168,30 +222,12 @@ mod tests {
         let serialized = serde_json::to_string_pretty(&emp).unwrap();
         assert_eq!(serialized, expected_str);
     }
-    */
-    fn test_employee_serde() {
-        let json_str = r#"{
-            "emp_no": 67115,
-            "birth_date": "14/12/1955",
-            "first_name": "Siamak",
-            "last_name": "Bernardeschi",
-            "gender": "M",
-            "hire_date": "26/04/1985"
-        }"#;
-    
-        let emp: Employee = serde_json::from_str(json_str).unwrap();
-        assert_eq!(emp.birth_date, date!(1955 - 12 - 14));
-        assert_eq!(emp.hire_date, date!(1985 - 04 - 26));
-    
-        let expected_str = String::from("{\n  \"emp_no\": 67115,\n  \"birth_date\": \"14/12/1955\",\n  \"first_name\": \"Siamak\",\n  \"last_name\": \"Bernardeschi\",\n  \"gender\": \"M\",\n  \"hire_date\": \"26/04/1985\"\n}");
-        let serialized = serde_json::to_string_pretty(&emp).unwrap();
-        assert_eq!(serialized, expected_str);
-    }
     
     #[test]
     fn test_employee_serde_failure() {
         let json_str = r#"{
             "emp_no": 67115,
+            "email": "siamak.bernardeschi.67115@gmail.com",
             "birth_date": "30/02/1955",
             "first_name": "Siamak",
             "last_name": "Bernardeschi",
