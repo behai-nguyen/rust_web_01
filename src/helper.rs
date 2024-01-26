@@ -8,6 +8,8 @@
 //! 
 //! * ``cargo test helper::tests``
 
+pub mod constants;
+pub mod app_utils;
 pub mod endpoint;
 pub mod messages;
 
@@ -15,10 +17,14 @@ pub mod messages;
 mod tests {
     use super::*;
     use actix_web::web::Bytes;
+    use actix_web::http::StatusCode;
     use crate::models::EmployeeLogin;
     use crate::bh_libs::api_status::ApiStatus;
-    use messages::CONTENT_TYPE_NOT_RECOGNISED_MSG;
-    use endpoint::{err_code_500, extract_employee_login};
+    use messages::{
+        CONTENT_TYPE_NOT_RECOGNISED_MSG,
+        REQUEST_BODY_EMPTY_MSG
+    };
+    use endpoint::{http_status_code, extract_employee_login};
 
     #[test]
     fn test_extract_employee_login_url_encoded_success() {
@@ -57,14 +63,16 @@ mod tests {
 
         let status = extract_employee_login(&body, &content_type);
 
+        let bad_request: u16 = http_status_code(StatusCode::BAD_REQUEST);
+
         assert!(status.is_err(), "Failure");
         // This test is also valid.
-        // assert_eq!(status.is_err_and(|status| status.code == err_code_500()), true);
+        assert_eq!(status.as_ref().is_err_and(|s| s.get_code() == bad_request), true);
 
         let api_stt: ApiStatus = status.err().unwrap();
 
-        assert_eq!(api_stt.code, err_code_500());
-        assert!(api_stt.text.unwrap().contains("missing field"), "Missing field error");
+        assert_eq!(api_stt.get_code(), bad_request);
+        assert_eq!(api_stt.get_message().unwrap(), REQUEST_BODY_EMPTY_MSG);
     }
 
     #[test]
@@ -74,14 +82,16 @@ mod tests {
 
         let status = extract_employee_login(&body, &content_type);
 
+        let bad_request: u16 = http_status_code(StatusCode::BAD_REQUEST);
+
         assert!(status.is_err(), "Failure");
         // This test is also valid.
-        // assert_eq!(status.is_err_and(|status| status.code == err_code_500()), true);
+        assert_eq!(status.as_ref().is_err_and(|s| s.get_code() == bad_request), true);
 
         let api_stt: ApiStatus = status.err().unwrap();
 
-        assert_eq!(api_stt.code, err_code_500());
-        assert!(api_stt.text.unwrap().contains("missing field"), "Missing field error");
+        assert_eq!(api_stt.get_code(), bad_request);
+        assert!(api_stt.get_message().unwrap().contains("missing field"), "Missing field error");
     }
 
     #[test]
@@ -91,13 +101,15 @@ mod tests {
 
         let status = extract_employee_login(&body, &content_type);
 
+        let bad_request: u16 = http_status_code(StatusCode::BAD_REQUEST);
+
         assert!(status.is_err(), "Failure");
         // This test is also valid.
-        // assert_eq!(status.is_err_and(|status| status.code == err_code_500()), true);
+        assert_eq!(status.as_ref().is_err_and(|s| s.get_code() == bad_request), true);
 
         let api_stt: ApiStatus = status.err().unwrap();
 
-        assert_eq!(api_stt.code, err_code_500());
-        assert_eq!(api_stt.text.unwrap(), CONTENT_TYPE_NOT_RECOGNISED_MSG);
+        assert_eq!(api_stt.get_code(), bad_request);
+        assert_eq!(api_stt.get_message().unwrap(), CONTENT_TYPE_NOT_RECOGNISED_MSG);
     }
 }
