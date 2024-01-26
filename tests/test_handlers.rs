@@ -23,13 +23,34 @@
 //! * Route: ``http://localhost:5000/helloemployee/%chi/%ak``; i.e., /employees/{last_name}/{first_name}.
 //! * Method: ``GET``
 //! 
+//! To run test for this module only: 
+//! 
+//!     * cargo test --test test_handlers
+//! 
+//! To run a specific test method: 
+//! 
+//!     * cargo test post_employees_json1 -- --exact
+//!     * cargo test get_employees_json2 -- --exact
+//!     * cargo test post_employees_html1 -- --exact
+//!     * cargo test get_employees_html2 -- --exact
+//!     * cargo test get_helloemployee_has_data -- --exact
+//!     * cargo test get_helloemployee_no_data -- --exact
+//!     * cargo test post_employees_json1_no_access_token -- --exact
+//!     * cargo test get_employees_json2_no_access_token -- --exact
+//!     * cargo test get_employees_json2_with_content_type_no_access_token -- --exact
+//!     * cargo test post_employees_html1_no_access_token -- --exact
+//!     * cargo test get_employees_html2_no_access_token -- --exact
+//!     * cargo test get_helloemployee_has_data_no_access_token -- --exact
+//!
 use std::collections::HashMap;
 use time::macros::date;
-use actix_web::http::StatusCode;
+use actix_web::http::{StatusCode, header, header::ContentType};
 use learn_actix_web::models::Employee;
 
 mod common;
 use common::{spawn_app, make_full_url, make_data_url, make_ui_url};
+
+use learn_actix_web::helper::messages::UNAUTHORISED_ACCESS_MSG;
 
 #[actix_web::test]
 async fn dummy_test() {
@@ -43,16 +64,20 @@ async fn dummy_test() {
 /// * Body: ``{"last_name": "%chi", "first_name": "%ak"}``
 #[actix_web::test]
 async fn post_employees_json1() {
-    let root_url = &spawn_app().await;
+    let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
 
     let mut json_data = HashMap::new();
     json_data.insert("last_name", "%chi");
     json_data.insert("first_name", "%ak");
 
     let response = client
-        .post(make_data_url(root_url, "/employees"))
+        .post(make_data_url(&test_app.app_url, "/employees"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
         .json(&json_data)
         .send()
         .await
@@ -79,12 +104,16 @@ async fn post_employees_json1() {
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_employees_json2() {
-    let root_url = &spawn_app().await;
+    let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
 
     let response = client
-        .get(make_data_url(root_url, "/employees/%chi/%ak"))
+        .get(make_data_url(&test_app.app_url, "/employees/%chi/%ak"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
         .send()
         .await
         .expect("Failed to execute request.");
@@ -112,16 +141,20 @@ async fn get_employees_json2() {
 /// * Body: ``last_name=%chi&first_name=%ak``
 #[actix_web::test]
 async fn post_employees_html1() {
-    let root_url = &spawn_app().await;
+    let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
 
     let mut params = HashMap::new();
     params.insert("last_name", "%chi");
     params.insert("first_name", "%ak");
 
     let response = client
-        .post(make_ui_url(root_url, "/employees"))
+        .post(make_ui_url(&test_app.app_url, "/employees"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
         .form(&params)
         .send()
         .await
@@ -143,12 +176,16 @@ async fn post_employees_html1() {
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_employees_html2() {
-    let root_url = &spawn_app().await;
+    let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
 
     let response = client
-        .get(make_ui_url(root_url, "/employees/%chi/%ak"))
+        .get(make_ui_url(&test_app.app_url, "/employees/%chi/%ak"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
         .send()
         .await
         .expect("Failed to execute request.");
@@ -169,12 +206,16 @@ async fn get_employees_html2() {
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_helloemployee_has_data() {
-    let root_url = &spawn_app().await;
+    let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
 
     let response = client
-        .get(make_full_url(root_url, "/helloemployee/%chi/%ak"))
+        .get(make_full_url(&test_app.app_url, "/helloemployee/%chi/%ak"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
         .send()
         .await
         .expect("Failed to execute request.");    
@@ -188,46 +229,22 @@ async fn get_helloemployee_has_data() {
     if let Ok(html) = res {
         assert!(html.contains("Hi first employee found"), "HTML response error.");
     }
-
-    /*
-    dotenv().ok();
-
-    let config = config::Config::init();
-
-    assert_eq!(config.database_url, "mysql://root:pcb.2176310315865259@localhost:3306/employees");
-
-    let pool = task::block_on(database::get_mysql_pool(config.max_connections, &config.database_url));
-
-    let app = test::init_service(
-        App::new()
-            .app_data(web::Data::new(AppState {
-                db: pool.clone()
-            }))        
-    )
-    .await;
-
-    let req = test::TestRequest::get().uri("/helloemployee/%chi/%ak").to_request();
-    let resp: Result<actix_web::dev::ServiceResponse, actix_web::Error> = test::try_call_service(&app, req).await;
-
-    match resp {
-        Err(_err) => assert_eq!(false, true),
-        Ok(r) => {
-            assert_eq!(r.status(), StatusCode::NOT_FOUND);
-        }
-    }
-    */
 }
 
 /// * Route: ``http://localhost:5000/helloemployee/%xxx/%xxx``; i.e., /employees/{last_name}/{first_name}.
 /// * Method: ``GET``
 #[actix_web::test]
 async fn get_helloemployee_no_data() {
-    let root_url = &spawn_app().await;
+    let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
 
     let response = client
-        .get(make_full_url(root_url, "/helloemployee/%xx/%yy"))
+        .get(make_full_url(&test_app.app_url, "/helloemployee/%xx/%yy"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
         .send()
         .await
         .expect("Failed to execute request.");    
@@ -241,4 +258,177 @@ async fn get_helloemployee_no_data() {
     if let Ok(html) = res {
         assert!(html.contains("No employee found"), "HTML response error.");
     }
+}
+
+/// * Route: ``http://localhost:5000/data/employees``
+/// * Method: ``POST``
+/// * Content Type: ``application/json``
+/// * Body: ``{"last_name": "%chi", "first_name": "%ak"}``
+#[actix_web::test]
+async fn post_employees_json1_no_access_token() {
+    let test_app = &spawn_app().await;
+
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    let mut json_data = HashMap::new();
+    json_data.insert("last_name", "%chi");
+    json_data.insert("first_name", "%ak");
+
+    let response = client
+        .post(make_data_url(&test_app.app_url, "/employees"))
+        //.post(make_data_url("http://localhost:5000", "/employees"))
+        .json(&json_data)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    common::assert_json_login_failure(response, StatusCode::UNAUTHORIZED,
+        UNAUTHORISED_ACCESS_MSG, false).await;
+}
+
+/// * Route: ``http://localhost:5000/data/employees/%chi/%ak``; i.e., /employees/{last_name}/{first_name}.
+/// * Method: ``GET``
+/// 
+/// Note, test that when content type is blank, authentication middleware redirected to 
+/// "/ui/login" results in HTML response, even though this route is JSON response route
+/// when the request is successfully served.
+/// 
+/// See get_employees_json2_with_content_type_no_access_token() where content type is set.
+/// 
+#[actix_web::test]
+async fn get_employees_json2_no_access_token() {
+    let test_app = &spawn_app().await;
+
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    let response = client
+        .get(make_data_url(&test_app.app_url, "/employees/%chi/%ak"))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    // ==> See get_employees_json2_with_content_type_no_access_token().
+    common::assert_redirected_html_login_page(response, 
+        StatusCode::UNAUTHORIZED, UNAUTHORISED_ACCESS_MSG).await;
+}
+
+/// * Route: ``http://localhost:5000/data/employees/%chi/%ak``; i.e., /employees/{last_name}/{first_name}.
+/// * Method: ``GET``
+/// 
+/// Note, test that when content type is blank, authentication middleware redirected to 
+/// "/ui/login" results in HTML response, even though this route is JSON response route
+/// when the request is successfully served.
+/// 
+/// When content type is set to ``application/json``, the failure response is in JSON.
+/// 
+/// See get_employees_json2_no_access_token() where content type is blank.
+/// 
+#[actix_web::test]
+async fn get_employees_json2_with_content_type_no_access_token() {
+    let test_app = &spawn_app().await;
+
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    let response = client        
+        .get(make_data_url(&test_app.app_url, "/employees/%chi/%ak"))
+        // ==> This is the test!! See get_employees_json2_no_access_token().
+        .header(header::CONTENT_TYPE, ContentType::json().to_string())
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    // ==> This is the test!! See get_employees_json2_no_access_token().
+    common::assert_json_login_failure(response, StatusCode::UNAUTHORIZED,
+        UNAUTHORISED_ACCESS_MSG, false).await;
+}
+
+/// * Route: ``http://localhost:5000/ui/employees``
+/// * Method: ``POST``
+/// * Content Type: ``application/x-www-form-urlencoded; charset=UTF-8``
+/// * Body: ``last_name=%chi&first_name=%ak``
+#[actix_web::test]
+async fn post_employees_html1_no_access_token() {
+    let test_app = &spawn_app().await;
+
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    let mut params = HashMap::new();
+    params.insert("last_name", "%chi");
+    params.insert("first_name", "%ak");
+
+    let response = client
+        .post(make_ui_url(&test_app.app_url, "/employees"))
+        .form(&params)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    common::assert_redirected_html_login_page(response, 
+        StatusCode::UNAUTHORIZED, UNAUTHORISED_ACCESS_MSG).await;
+}
+
+/// * Route: ``http://localhost:5000/ui/employees/%chi/%ak``; i.e., /employees/{last_name}/{first_name}.
+/// * Method: ``GET``
+#[actix_web::test]
+async fn get_employees_html2_no_access_token() {
+    let test_app = &spawn_app().await;
+
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    let response = client
+        .get(make_ui_url(&test_app.app_url, "/employees/%chi/%ak"))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    common::assert_redirected_html_login_page(response, 
+        StatusCode::UNAUTHORIZED, UNAUTHORISED_ACCESS_MSG).await;
+}
+
+/// * Route: ``http://localhost:5000/helloemployee/%chi/%ak``; i.e., /helloemployee/{last_name}/{first_name}.
+/// * Method: ``GET``
+#[actix_web::test]
+async fn get_helloemployee_has_data_no_access_token() {
+    let test_app = &spawn_app().await;
+
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    let response = client
+        .get(make_full_url(&test_app.app_url, "/helloemployee/%chi/%ak"))
+        .send()
+        .await
+        .expect("Failed to execute request.");    
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    common::assert_redirected_html_login_page(response, 
+        StatusCode::UNAUTHORIZED, UNAUTHORISED_ACCESS_MSG).await;
 }
