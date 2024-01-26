@@ -23,6 +23,7 @@ pub mod handlers;
 
 pub mod middleware;
 
+pub mod auth_middleware;
 pub mod auth_handlers;
 
 pub struct AppState {
@@ -49,7 +50,7 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
 
     let server = HttpServer::new(move || {
         // let cors = Cors::permissive();
-        /* */let cors = Cors::default()
+        /**/let cors = Cors::default()
             .allowed_origin(&config.allowed_origin)
             .allowed_methods(vec!["GET", "POST"])
             .allowed_headers(vec![
@@ -58,18 +59,21 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
                 header::ACCEPT,
             ])
             .max_age(config.max_age)
-            .supports_credentials();/* */
+            .supports_credentials();/**/
 
         App::new()
             .app_data(web::Data::new(AppState {
                 db: pool.clone()
             }))
-            // .wrap(auth_middleware::CheckLogin)
+            .wrap(auth_middleware::CheckLogin)
             .wrap(IdentityMiddleware::default())
-            .wrap(SessionMiddleware::new(
+            .wrap(SessionMiddleware::builder(
                     redis_store.clone(),
                     secret_key.clone()
-            ))
+                )
+                .cookie_secure(false)
+                .build(),
+            )
             .wrap(cors)
             .service(
                 web::scope("/data")
@@ -81,11 +85,12 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
                     .service(handlers::employees_html1)
                     .service(handlers::employees_html2)
                     .service(auth_handlers::login_page)
-                    // .service(auth_handlers::home_page),
+                    .service(auth_handlers::home_page),
             )
             .service(
                 web::scope("/api")
                     .service(auth_handlers::login)
+                    .service(auth_handlers::logout),
             )
             .service(
                 web::resource("/helloemployee/{last_name}/{first_name}")
