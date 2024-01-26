@@ -3,6 +3,14 @@
 //! Represents the ``employees`` table in the database: a structure which 
 //! mirrors the database table, other related auxiliary structure(s), and 
 //! associated CRUD method(s).
+//! 
+
+// To run all doc tests:
+// 
+//     * cargo test --doc models
+//
+// Can't run a specific doc test.
+// 
 
 use sqlx::{FromRow, Row, Pool, MySql};
 
@@ -10,6 +18,8 @@ use sqlx::types::time::Date;
 use serde::{Serialize, Deserialize};
 
 use crate::utils;
+
+use crate::bh_libs::api_status::ApiStatus;
 
 /// Represents the ``employees`` table in the database. Values of [`sqlx::types::time::Date`] 
 /// fields are converted into Australian date format ``dd/mm/yyyy`` before
@@ -37,13 +47,25 @@ pub struct EmployeeLogin {
     pub password: String,
 }
 
-/// Represents a login success request. **Work in progress**.
+/// Represents a result data of a successful login request.
+/// **Work in progress**. 
+/// 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginSuccess {
     /// Logged in user email.
     pub email: String,
     /// The login authentication token.
-    pub token: String,
+    pub access_token: String,
+}
+
+/// Represents a JSON response of a successful login request.
+#[derive(Serialize, Deserialize)]
+pub struct LoginSuccessResponse {
+    #[serde(flatten)]
+    /// **Work in progress**. All API responses should have this data.
+    pub api_status: ApiStatus,
+    /// The actual data component of the response.
+    pub data: LoginSuccess
 }
 
 /// An auxiliary structure which represents: 
@@ -108,7 +130,7 @@ pub struct EmployeeSearch {
 ///     let pool = database::get_mysql_pool(5, "mysql://root:pcb.2176310315865259@localhost:3306/employees").await;
 ///     let query_result = get_employees(&pool, "nguy%", "be%").await;
 /// }
-/// ````
+/// ```
 pub async fn get_employees(
     pool: &Pool<MySql>,
     last_name: &str,
@@ -197,6 +219,16 @@ pub async fn select_employee(
     .fetch_optional(pool).await.unwrap()
 }
 
+/// To these tests below:
+/// 
+///    * cargo test models::tests
+/// 
+/// To run a specific test method: 
+/// 
+///    * cargo test models::tests::test_employee_serde -- --exact
+///    * cargo test models::tests::test_employee_serde_failure -- --exact
+///    * cargo test models::tests::test_login_success_response -- --exact
+/// 
 #[cfg(test)]
 mod tests {
     use time::macros::date;
@@ -240,5 +272,28 @@ mod tests {
             Err(err) => assert!(err.to_string()
                 .contains("Error deserialise 30/02/1955 to YYYY-MM-DD"), "Expect birth_date deserialisation error"),
         };
-    }    
+    }
+
+    #[test]
+    fn test_login_success_response() {
+        let api_status = ApiStatus::new(200)
+            .set_message("text message");
+    
+        let login_success = LoginSuccess {
+            email: String::from("behai_nguyen@hotmail.com"),
+            access_token: String::from("abcd-efgh-ijkl-mnop")
+        };
+
+        let lsr = LoginSuccessResponse {api_status, data: login_success};
+        let lsr_str = serde_json::to_string(&lsr).unwrap();
+
+        let lsr_obj = serde_json::from_str::<LoginSuccessResponse>(&lsr_str).unwrap();
+
+        assert_eq!(lsr_obj.api_status.get_code(), 200);
+        assert_eq!(lsr_obj.api_status.get_message(), Some(String::from("text message")));
+        assert_eq!(lsr_obj.api_status.get_message().unwrap(), "text message");
+        assert_eq!(lsr_obj.api_status.get_session_id(), None);
+        assert_eq!(lsr_obj.data.email, "behai_nguyen@hotmail.com");
+        assert_eq!(lsr_obj.data.access_token, "abcd-efgh-ijkl-mnop");    
+    }
 }
