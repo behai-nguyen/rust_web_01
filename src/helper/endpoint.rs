@@ -5,15 +5,21 @@
 use actix_web::web::Bytes;
 use actix_web::http::StatusCode;
 
+use serde_json;
+
 use serde_html_form::from_bytes;
 
-use crate::models::EmployeeLogin;
+use crate::models::{EmployeeLogin, LoginSuccess, LoginSuccessResponse};
 use crate::bh_libs::api_status::ApiStatus;
-use crate::helper::messages::CONTENT_TYPE_NOT_RECOGNISED_MSG;
+use crate::helper::messages::{
+    REQUEST_BODY_EMPTY_MSG,
+    CONTENT_TYPE_NOT_RECOGNISED_MSG
+};
 
-/// HTTP Internal Server Error code, 500.
-pub fn err_code_500() -> u16 {
-    StatusCode::INTERNAL_SERVER_ERROR.as_u16()
+/// Returns an [`actix_web::http::StatusCode`] as an [`u16`].
+/// 
+pub fn http_status_code(status_code: StatusCode) -> u16 {
+    status_code.as_u16()
 }
 
 /// Attempts to deserialise user submitted employee login information into struct
@@ -32,7 +38,8 @@ pub fn err_code_500() -> u16 {
 /// # Return
 /// 
 /// - [`std::result::Result`]&lt;[`EmployeeLogin`], [`ApiStatus`]&gt; - that is,
-/// returns [`EmployeeLogin`] if deserialisation (extraction) is successful, [`ApiStatus`] otherwise.
+/// returns [`EmployeeLogin`] if deserialisation (extraction) is successful, 
+/// [`ApiStatus`] otherwise.
 /// 
 /// # Usage Example
 /// 
@@ -42,6 +49,13 @@ pub fn extract_employee_login(
     body: &Bytes, 
     content_type: &str
 ) -> Result<EmployeeLogin, ApiStatus> {
+    // No content. Returns an error.
+    if body.len() == 0  {
+        return Err(
+            ApiStatus::new(http_status_code(StatusCode::BAD_REQUEST))
+                .set_message(REQUEST_BODY_EMPTY_MSG)
+        );
+    }
 
     // Content type and associated extraction function.
     struct Extractor {
@@ -60,7 +74,10 @@ pub fn extract_employee_login(
         handler: |body: &Bytes| -> Result<EmployeeLogin, ApiStatus> {
             match from_bytes::<EmployeeLogin>(&body.to_owned().to_vec()) {
                 Ok(e) => Ok(e),
-                Err(e) => Err(ApiStatus::new(err_code_500()).set_text(&e.to_string()))
+                Err(e) => Err(
+                    ApiStatus::new(http_status_code(StatusCode::BAD_REQUEST))
+                        .set_message(&e.to_string())
+                )
             }
         }
     });
@@ -73,7 +90,10 @@ pub fn extract_employee_login(
             // From https://stackoverflow.com/a/67340858
             match serde_json::from_slice(&body.to_owned()) {
                 Ok(e) => Ok(e),
-                Err(e) => Err(ApiStatus::new(err_code_500()).set_text(&e.to_string()))
+                Err(e) => Err(
+                    ApiStatus::new(http_status_code(StatusCode::BAD_REQUEST))
+                        .set_message(&e.to_string())
+                )
             }
         }
     });
@@ -88,5 +108,53 @@ pub fn extract_employee_login(
 
     // Param content_type is not recognised, return ApiStatus with an 
     // appropriate message.
-    Err(ApiStatus::new(err_code_500()).set_text(CONTENT_TYPE_NOT_RECOGNISED_MSG))
+    Err(
+        ApiStatus::new(http_status_code(StatusCode::BAD_REQUEST))
+            .set_message(CONTENT_TYPE_NOT_RECOGNISED_MSG)
+    )
+}
+
+
+/// Constructs a successful login JSON response.
+///
+/// Combine [`crate::bh_libs::api_status::ApiStatus`] and 
+/// [`crate::models::LoginSuccess`] to make a successful login JSON response in the
+/// form:
+/// 
+///   ``
+///   {
+///       "code": 200,
+///       "message": null,
+///       "session_id": null,
+///       "data": {
+///           "email": "behai_nguyen@hotmail.com",
+///           "access_token": "xxxx...zzzz"
+///       }
+///   }
+///   ``
+/// 
+/// # Arguments
+/// 
+/// * `email` - the email of the successful logged in session. It's the value of
+/// ``data.email``.
+/// 
+/// * `access_token` - the server generated access token. Clients need to include 
+/// this value in the request header [`actix_web::http::header::AUTHORIZATION`]
+/// on subsequent requests to access protected resources. It's the value of 
+/// ``data.access_token``.
+/// 
+/// # Return
+/// 
+/// * JSON object as listed above.
+/// 
+pub fn login_success_json_response(
+    email: &str, 
+    access_token: &str) -> String {
+
+    let r = LoginSuccessResponse {
+        api_status: ApiStatus::new(http_status_code(StatusCode::OK)),
+        data: LoginSuccess { email: String::from(email), access_token: String::from(access_token) }
+    };
+
+    serde_json::to_string(&r).unwrap()
 }
