@@ -56,6 +56,28 @@ git clone -b v0.5.0 https://github.com/behai-nguyen/rust_web_01.git
 
 We're implementing a login process for our actix-web learning application. We undertake some general updates to get ready to support login. We then implement a new /api/login route, which supports both application/x-www-form-urlencoded and application/json content types. In this post, we only implement deserialising the submitted request data, then echo some response. We also add a login page via route /ui/login.
 
+6. [Rust: simple actix-web email-password login and request authentication using middleware.](https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/)
+
+```
+git clone -b v0.6.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+For our learning <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> application, we are now adding two new features. ⓵ A simple email-password login with no session expiry. 
+⓶ A new middleware that manages 
+<a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#definition-request-auth"><code>request authentication</code></a> 
+using an 
+<a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#definition-access-token"><code>access token</code></a> 
+“generated” by the login process. All 
+<a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#issues-covered-existing-routes">five existing routes</a> 
+are now protected by this middleware: they can only be accessed if the 
+request has a valid 
+<a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#definition-access-token"><code>access token</code></a>. 
+With these two new features added, this application acts as both an 
+<a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#definition-app-server"><code>application server</code></a> 
+and an 
+<a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#definition-api-server"><code>API-like server</code> 
+or a <code>service</code></a>.
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
