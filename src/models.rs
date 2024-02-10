@@ -17,9 +17,10 @@ use sqlx::{FromRow, Row, Pool, MySql};
 use sqlx::types::time::Date;
 use serde::{Serialize, Deserialize};
 
-use crate::utils;
-
-use crate::bh_libs::api_status::ApiStatus;
+use crate::bh_libs::{
+    australian_date::australian_date_format,
+    api_status::ApiStatus
+};
 
 /// Represents the ``employees`` table in the database. Values of [`sqlx::types::time::Date`] 
 /// fields are converted into Australian date format ``dd/mm/yyyy`` before
@@ -28,12 +29,12 @@ use crate::bh_libs::api_status::ApiStatus;
 pub struct Employee {
     pub emp_no: i32,
     pub email: String,
-    #[serde(with = "utils::australian_date_format")]
+    #[serde(with = "australian_date_format")]
     pub birth_date: Date,
     pub first_name: String,
     pub last_name: String,    
     pub gender: String,
-    #[serde(with = "utils::australian_date_format")]
+    #[serde(with = "australian_date_format")]
     pub hire_date: Date,
 }
 
