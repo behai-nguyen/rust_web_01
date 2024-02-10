@@ -8,6 +8,8 @@
 // 
 //     * cargo test bh_libs::tests
 // 
+
+pub mod australian_date;
 pub mod api_status;
 
 #[cfg(test)]

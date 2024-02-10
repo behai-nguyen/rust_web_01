@@ -3,11 +3,12 @@
 //! The application HTTP server, call by the application ``main()`` function, 
 //! as well as integration test methods.
 
+use std::{fs::File, io::Read as _,};
 use std::net::TcpListener;
 use dotenv::dotenv;
 use sqlx::{Pool, MySql};
-use actix_web::{cookie::Key, http::header, web, App, HttpServer};
-use actix_web::dev::Server;
+use actix_web::{dev::Server, cookie::Key, http::header, web, App, HttpServer};
+use openssl::{pkey::{PKey, Private}, ssl::{SslAcceptorBuilder, SslAcceptor, SslMethod},};
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_identity::IdentityMiddleware;
 use actix_cors::Cors;
@@ -17,7 +18,6 @@ pub mod helper;
 
 pub mod config;
 pub mod database;
-pub mod utils;
 pub mod models;
 pub mod handlers;
 
@@ -28,6 +28,33 @@ pub mod auth_handlers;
 
 pub struct AppState {
     db: Pool<MySql>
+}
+
+/// See https://github.com/actix/examples/tree/master/https-tls/openssl
+/// 
+fn load_encrypted_private_key() -> PKey<Private> {
+    // let mut file = File::open("key.pem").unwrap();
+    let mut file = File::open("./cert/key-pass.pem").unwrap();
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).expect("Failed to read file");
+
+    PKey::private_key_from_pem_passphrase(&buffer, b"I am installing SSL").unwrap()
+}
+
+/// See https://github.com/actix/examples/tree/master/https-tls/openssl
+/// 
+fn ssl_builder() -> SslAcceptorBuilder {
+    // build TLS config from files
+    let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+
+    // set the encrypted private key
+    builder
+        .set_private_key(&load_encrypted_private_key())
+        .unwrap();
+
+    builder.set_certificate_chain_file("./cert/cert-pass.pem").unwrap();
+
+    builder
 }
 
 /// The application HTTP server.
@@ -49,8 +76,7 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
         .unwrap();
 
     let server = HttpServer::new(move || {
-        // let cors = Cors::permissive();
-        /**/let cors = Cors::default()
+        let cors = Cors::default()
             .allowed_origin(&config.allowed_origin)
             .allowed_methods(vec!["GET", "POST"])
             .allowed_headers(vec![
@@ -59,7 +85,7 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
                 header::ACCEPT,
             ])
             .max_age(config.max_age)
-            .supports_credentials();/**/
+            .supports_credentials();
 
         App::new()
             .app_data(web::Data::new(AppState {
@@ -98,7 +124,8 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
                     .route(web::get().to(handlers::hi_first_employee_found))
             )
     })
-    .listen(listener)?
+    // .listen(listener)?
+    .listen_openssl(listener, ssl_builder())?
     .run();
 
     Ok(server)
