@@ -78,6 +78,15 @@ and an
 <a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#definition-api-server"><code>API-like server</code> 
 or a <code>service</code></a>.
 
+7. [Rust: actix-web get SSL/HTTPS for localhost.](https://behainguyen.wordpress.com/2024/02/10/rust-actix-web-get-ssl-https-for-localhost/)
+
+```
+git clone -b v0.7.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+We are going to enable our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application to run under <code>HTTPS</code>. As a result, we need to do some minor refactoring to existing integration tests. We also move and rename an existing module for better code organisation.
+
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
