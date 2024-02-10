@@ -57,10 +57,7 @@ use learn_actix_web::helper::messages::LOGIN_FAILURE_MSG;
 async fn get_home_page_html() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_ui_url(&test_app.app_url, "/home"))
@@ -79,10 +76,7 @@ async fn get_home_page_html() {
 async fn get_login_page_html() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_ui_url(&test_app.app_url, "/login"))
@@ -103,10 +97,7 @@ async fn get_login_page_html() {
 async fn post_login_html() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut params = HashMap::new();
     params.insert("email", "chirstian.koblick.10004@gmail.com");
@@ -135,10 +126,7 @@ async fn post_login_html() {
 async fn post_login_json() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut json_data = HashMap::new();
     json_data.insert("email", "saniya.kalloufi.10008@gmail.com");
@@ -175,10 +163,7 @@ async fn post_login_json() {
 async fn post_login_html_failure_1() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut params = HashMap::new();
     params.insert("email", "suzette.petXXtey.10024@gmail.com");
@@ -213,10 +198,7 @@ async fn post_login_html_failure_1() {
 async fn post_login_html_failure_2() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut params = HashMap::new();
     params.insert("email", "suzette.pettey.10024@gmail.com");
@@ -250,10 +232,7 @@ async fn post_login_html_failure_2() {
 async fn post_login_html_failure_3() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut params = HashMap::new();
     params.insert("emXXail", "suzette.pettey.10024@gmail.com");
@@ -268,7 +247,7 @@ async fn post_login_html_failure_3() {
 
     common::assert_access_token_not_in_header(&response);
     common::assert_access_token_not_in_cookie(&response);
-    common::assert_json_login_failure(response, StatusCode::BAD_REQUEST, 
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, 
         "missing field `email`", true).await;
 }
 
@@ -284,10 +263,7 @@ async fn post_login_html_failure_3() {
 async fn post_login_json_failure_1() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut json_data = HashMap::new();
     json_data.insert("email", "suzette.petXXtey.10024@gmail.com");
@@ -302,7 +278,7 @@ async fn post_login_json_failure_1() {
 
     common::assert_access_token_not_in_header(&response);
     common::assert_access_token_not_in_cookie(&response);    
-    common::assert_json_login_failure(response, StatusCode::UNAUTHORIZED, 
+    common::assert_json_failure(response, StatusCode::UNAUTHORIZED, 
         LOGIN_FAILURE_MSG, false).await; 
 }
 
@@ -318,10 +294,7 @@ async fn post_login_json_failure_1() {
 async fn post_login_json_failure_2() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut json_data = HashMap::new();
     json_data.insert("email", "suzette.pettey.10024@gmail.com");
@@ -336,7 +309,7 @@ async fn post_login_json_failure_2() {
 
     common::assert_access_token_not_in_header(&response);
     common::assert_access_token_not_in_cookie(&response);    
-    common::assert_json_login_failure(response, StatusCode::UNAUTHORIZED, 
+    common::assert_json_failure(response, StatusCode::UNAUTHORIZED, 
         LOGIN_FAILURE_MSG, false).await;     
 }
 
@@ -353,10 +326,7 @@ async fn post_login_json_failure_2() {
 async fn post_login_json_failure_3() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut json_data = HashMap::new();
     json_data.insert("emXXail", "suzette.pettey.10024@gmail.com");
@@ -371,7 +341,7 @@ async fn post_login_json_failure_3() {
 
     common::assert_access_token_not_in_header(&response);
     common::assert_access_token_not_in_cookie(&response);    
-    common::assert_json_login_failure(response, StatusCode::BAD_REQUEST, 
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, 
         "missing field `email`", true).await;
 }
 
@@ -382,10 +352,7 @@ async fn post_login_json_failure_3() {
 async fn post_logout_html() {
     let test_app = &spawn_app().await;
     
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut params = HashMap::new();
     params.insert("email", "chirstian.koblick.10004@gmail.com");

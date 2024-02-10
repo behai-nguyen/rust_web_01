@@ -66,10 +66,7 @@ async fn dummy_test() {
 async fn post_employees_json1() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut json_data = HashMap::new();
     json_data.insert("last_name", "%chi");
@@ -106,10 +103,7 @@ async fn post_employees_json1() {
 async fn get_employees_json2() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_data_url(&test_app.app_url, "/employees/%chi/%ak"))
@@ -143,10 +137,7 @@ async fn get_employees_json2() {
 async fn post_employees_html1() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut params = HashMap::new();
     params.insert("last_name", "%chi");
@@ -178,10 +169,7 @@ async fn post_employees_html1() {
 async fn get_employees_html2() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_ui_url(&test_app.app_url, "/employees/%chi/%ak"))
@@ -208,10 +196,7 @@ async fn get_employees_html2() {
 async fn get_helloemployee_has_data() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_full_url(&test_app.app_url, "/helloemployee/%chi/%ak"))
@@ -237,10 +222,7 @@ async fn get_helloemployee_has_data() {
 async fn get_helloemployee_no_data() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_full_url(&test_app.app_url, "/helloemployee/%xx/%yy"))
@@ -268,10 +250,7 @@ async fn get_helloemployee_no_data() {
 async fn post_employees_json1_no_access_token() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut json_data = HashMap::new();
     json_data.insert("last_name", "%chi");
@@ -287,7 +266,7 @@ async fn post_employees_json1_no_access_token() {
 
     common::assert_access_token_not_in_header(&response);
     common::assert_access_token_not_in_cookie(&response);
-    common::assert_json_login_failure(response, StatusCode::UNAUTHORIZED,
+    common::assert_json_failure(response, StatusCode::UNAUTHORIZED,
         UNAUTHORISED_ACCESS_MSG, false).await;
 }
 
@@ -304,10 +283,7 @@ async fn post_employees_json1_no_access_token() {
 async fn get_employees_json2_no_access_token() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_data_url(&test_app.app_url, "/employees/%chi/%ak"))
@@ -337,10 +313,7 @@ async fn get_employees_json2_no_access_token() {
 async fn get_employees_json2_with_content_type_no_access_token() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client        
         .get(make_data_url(&test_app.app_url, "/employees/%chi/%ak"))
@@ -353,7 +326,7 @@ async fn get_employees_json2_with_content_type_no_access_token() {
     common::assert_access_token_not_in_header(&response);
     common::assert_access_token_not_in_cookie(&response);
     // ==> This is the test!! See get_employees_json2_no_access_token().
-    common::assert_json_login_failure(response, StatusCode::UNAUTHORIZED,
+    common::assert_json_failure(response, StatusCode::UNAUTHORIZED,
         UNAUTHORISED_ACCESS_MSG, false).await;
 }
 
@@ -365,10 +338,7 @@ async fn get_employees_json2_with_content_type_no_access_token() {
 async fn post_employees_html1_no_access_token() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let mut params = HashMap::new();
     params.insert("last_name", "%chi");
@@ -393,10 +363,7 @@ async fn post_employees_html1_no_access_token() {
 async fn get_employees_html2_no_access_token() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_ui_url(&test_app.app_url, "/employees/%chi/%ak"))
@@ -416,10 +383,7 @@ async fn get_employees_html2_no_access_token() {
 async fn get_helloemployee_has_data_no_access_token() {
     let test_app = &spawn_app().await;
 
-    let client = reqwest::Client::builder()
-        .cookie_store(true)
-        .build()
-        .unwrap();
+    let client = common::reqwest_client();
 
     let response = client
         .get(make_full_url(&test_app.app_url, "/helloemployee/%chi/%ak"))
