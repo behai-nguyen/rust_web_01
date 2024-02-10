@@ -36,23 +36,23 @@ use crate::bh_libs::api_status::ApiStatus;
 /// * [`actix_web::cookie::Cookie`].
 /// 
 pub fn build_cookie<'a>(
-    request: &'a HttpRequest,
+    _request: &'a HttpRequest,
     name: &'a str,
     value: &'a str,
     server_only: bool,
     removal: bool
 ) -> Cookie<'a> {
     // Header "host" should always be in the request headers.
-    let host = request.headers().get("host").unwrap().to_str().unwrap().to_owned();
+    // let host = request.headers().get("host").unwrap().to_str().unwrap().to_owned();
     // Remove the port if any.
-    let parts = host.split(":");
+    // let parts = host.split(":");
 
     let mut cookie = Cookie::build(name, value)
-        .domain(String::from(parts.collect::<Vec<&str>>()[0]))
+        // .domain(String::from(parts.collect::<Vec<&str>>()[0]))
         .path("/")
-        .secure(false)
+        .secure(true)
         .http_only(server_only)
-        .same_site(SameSite::Strict)
+        .same_site(SameSite::None)
         .finish();
 
     if removal {
