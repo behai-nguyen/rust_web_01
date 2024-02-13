@@ -52,6 +52,7 @@ use crate::helper::app_utils::{
     build_login_redirect_cookie,
     build_original_content_type_cookie
 };
+
 use crate::helper::messages::UNAUTHORISED_ACCESS_MSG;
 
 /// Attempt to extracts access token from request header [`actix_web::http::header::AUTHORIZATION`], 
@@ -194,7 +195,8 @@ where
     dev::forward_ready!(service);
 
     fn call(&self, request: ServiceRequest) -> Self::Future {
-        println!("Auth -- requested path: {}, content type: {}", request.path(), request.content_type());
+        println!("Auth -- requested path: {}, method: {}; content type: {}", 
+            request.path(), request.method(), request.content_type());
 
         let call_request = |req: ServiceRequest| -> Self::Future {
             let res = self.service.call(req);
@@ -236,9 +238,12 @@ where
 
         // TO_DO: Windows IIS! This feels like a hack, I'm not sure how to handle this.
         // Or this is even correct. Please be careful.
-        // if request.path() == "/favicon.ico" {
-        //     return call_request(request);
-        // }
+        //
+        // Without this, when is_logged_in is false, it would get redirect.
+        //
+        if request.path() == "/favicon.ico" {
+             return call_request(request);
+        }
 
         // TO_DO: Work in progress.
         // Check if access token exists? If exists, is it valid?
