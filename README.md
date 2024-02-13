@@ -86,6 +86,13 @@ git clone -b v0.7.0 https://github.com/behai-nguyen/rust_web_01.git
 
 We are going to enable our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application to run under <code>HTTPS</code>. As a result, we need to do some minor refactoring to existing integration tests. We also move and rename an existing module for better code organisation.
 
+8. [Rust: actix-web CORS, Cookies and AJAX calls.](https://behainguyen.wordpress.com/2024/02/13/rust-actix-web-cors-cookies-and-ajax-calls/)
+
+```
+git clone -b v0.8.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+Continuing with our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we will discuss proper AJAX calls to ensure reliable functionality of CORS and session cookies. This also addresses <a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#some-current-issues" title="issue ❷ raised" target="_blank">issue ❷ raised</a> in a <a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/" title="Rust: simple actix-web email-password login and request authentication using middleware." target="_blank">previous post</a>.
 
 ## On .env
 
