@@ -7,7 +7,7 @@ use std::{fs::File, io::Read as _,};
 use std::net::TcpListener;
 use dotenv::dotenv;
 use sqlx::{Pool, MySql};
-use actix_web::{dev::Server, cookie::Key, http::header, web, App, HttpServer};
+use actix_web::{dev::Server, cookie::{Key, SameSite}, http::header, web, App, HttpServer};
 use openssl::{pkey::{PKey, Private}, ssl::{SslAcceptorBuilder, SslAcceptor, SslMethod},};
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_identity::IdentityMiddleware;
@@ -97,7 +97,8 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
                     redis_store.clone(),
                     secret_key.clone()
                 )
-                .cookie_secure(false)
+                .cookie_secure(true)
+                .cookie_same_site(SameSite::None)
                 .build(),
             )
             .wrap(cors)
