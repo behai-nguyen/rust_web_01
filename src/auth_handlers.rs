@@ -29,6 +29,7 @@ use crate::helper::app_utils::{
     remove_login_redirect_cookie,
     build_authorization_cookie,
     remove_authorization_cookie,
+    build_original_content_type_cookie,
     remove_original_content_type_cookie
 };
 use crate::bh_libs::api_status::ApiStatus;
@@ -76,22 +77,13 @@ fn first_stage_login_error_response(
     request: &HttpRequest,
     message: &str
 ) -> HttpResponse {
-    if request.content_type() == ContentType::form_url_encoded().to_string() {
-        HttpResponse::Ok()
-            .status(StatusCode::SEE_OTHER)
-            .append_header((header::LOCATION, "/ui/login"))
-            // Note this per-request server-side only cookie.
-            .cookie(build_login_redirect_cookie(&request, message))
-            .finish()
-    }
-    else {
-        HttpResponse::Ok()
-            .status(StatusCode::UNAUTHORIZED)
-            .content_type(ContentType::json())
-            .body(serde_json::to_string(
-                &ApiStatus::new(http_status_code(StatusCode::UNAUTHORIZED))
-                    .set_message(message)).unwrap())
-    }
+    HttpResponse::Ok()
+        .status(StatusCode::SEE_OTHER)
+        .append_header((header::LOCATION, "/ui/login"))
+        // Note these per-request server-side only cookies.
+        .cookie(build_original_content_type_cookie(&request, request.content_type()))
+        .cookie(build_login_redirect_cookie(&request, message))
+        .finish()
 }
 
 /// A login process helper method. 
