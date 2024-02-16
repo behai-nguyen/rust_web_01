@@ -7,7 +7,10 @@ use std::{fs::File, io::Read as _,};
 use std::net::TcpListener;
 use dotenv::dotenv;
 use sqlx::{Pool, MySql};
-use actix_web::{dev::Server, cookie::{Key, SameSite}, http::header, web, App, HttpServer};
+use actix_web::{
+    dev::Server, error, cookie::{Key, SameSite}, 
+    http::{header, StatusCode}, web, App, HttpServer
+};
 use openssl::{pkey::{PKey, Private}, ssl::{SslAcceptorBuilder, SslAcceptor, SslMethod},};
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_identity::IdentityMiddleware;
@@ -25,6 +28,8 @@ pub mod middleware;
 
 pub mod auth_middleware;
 pub mod auth_handlers;
+
+use crate::helper::app_utils::make_api_status_response;
 
 pub struct AppState {
     db: Pool<MySql>
@@ -55,6 +60,49 @@ fn ssl_builder() -> SslAcceptorBuilder {
     builder.set_certificate_chain_file("./cert/cert-pass.pem").unwrap();
 
     builder
+}
+
+/// A global error handler for ``application/json`` data extractor,
+/// [`actix_web::types::json`].
+/// 
+/// Basically, malformed submitted data would result in a JSON response, which is a
+/// serialised [`crate::bh_libs::api_status::ApiStatus`] with ``code`` of ``400`` for 
+/// [`actix_web::http::StatusCode::BAD_REQUEST`], ``message`` is the actual deserialised
+/// error message.
+/// 
+fn json_config() -> web::JsonConfig {
+    // custom `Json` extractor configuration
+    web::JsonConfig::default()
+        // limit request payload size
+        .limit(4096)
+        // only accept application/json content type
+        .content_type(|mime| mime == mime::APPLICATION_JSON)
+        // use custom error handler
+        .error_handler(|err, _req| {
+            let err_str: String = String::from(err.to_string());
+            error::InternalError::from_response(err, 
+                make_api_status_response(StatusCode::BAD_REQUEST, &err_str, None)).into()
+        })
+}
+
+/// A global error handler for ``application/x-www-form-urlencoded`` data extractor,
+/// [`actix_web::types::form`].
+/// 
+/// Basically, malformed submitted data would result in a JSON response, which is a
+/// serialised [`crate::bh_libs::api_status::ApiStatus`] with ``code`` of ``400`` for 
+/// [`actix_web::http::StatusCode::BAD_REQUEST`], ``message`` is the actual deserialised
+/// error message.
+/// 
+fn form_config() -> web::FormConfig {
+    web::FormConfig::default()
+        // limit request payload size
+        .limit(4096)
+        // use custom error handler
+        .error_handler(|err, _req| {
+            let err_str: String = String::from(err.to_string());
+            error::InternalError::from_response(err, 
+                make_api_status_response(StatusCode::BAD_REQUEST, &err_str, None)).into()
+        })
 }
 
 /// The application HTTP server.
@@ -91,6 +139,8 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
             .app_data(web::Data::new(AppState {
                 db: pool.clone()
             }))
+            .app_data(json_config())
+            .app_data(form_config())
             .wrap(auth_middleware::CheckLogin)
             .wrap(IdentityMiddleware::default())
             .wrap(SessionMiddleware::builder(
