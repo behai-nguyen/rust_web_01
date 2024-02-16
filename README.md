@@ -94,6 +94,14 @@ git clone -b v0.8.0 https://github.com/behai-nguyen/rust_web_01.git
 
 Continuing with our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we will discuss proper AJAX calls to ensure reliable functionality of CORS and session cookies. This also addresses <a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/#some-current-issues" title="issue ❷ raised" target="_blank">issue ❷ raised</a> in a <a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/" title="Rust: simple actix-web email-password login and request authentication using middleware." target="_blank">previous post</a>.
 
+9. [Rust: actix-web global extractor error handlers.](https://behainguyen.wordpress.com/2024/02/16/rust-actix-web-global-extractor-error-handlers/)
+
+```
+git clone -b v0.9.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+Continuing with our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we implement global extractor error handlers for both <code>application/json</code> and <code>application/x-www-form-urlencoded</code> data. This enhances the robustness of the code. Subsequently, we refactor the login data extraction process to leverage the global extractor error handlers.
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
