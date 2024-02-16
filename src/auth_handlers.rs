@@ -5,8 +5,7 @@
 
 use tera::{Context, Tera};
 use actix_web::{
-    HttpMessage, get, post, web, web::Bytes, HttpRequest, 
-    HttpResponse, Responder, Either
+    HttpMessage, get, post, web, HttpRequest, HttpResponse, Responder, Either
 };
 use actix_web::http::{header, StatusCode, header::ContentType};
 
@@ -21,7 +20,6 @@ use crate::helper::constants::{
 use crate::helper::messages::LOGIN_FAILURE_MSG;
 use crate::helper::endpoint::{
     http_status_code, 
-    extract_employee_login,
     login_success_json_response
 };
 use crate::helper::app_utils::{
@@ -347,7 +345,7 @@ pub async fn login_page(
 /// [`actix_web::http::header::AUTHORIZATION`], and same value: which
 /// is the access token.
 /// 
-/// This access token is also the value of ``data.token`` field in case of
+/// This access token is also the value of ``data.access_token`` field in case of
 /// ``application/json`` responses above.
 /// 
 /// The clients need to remember this after a successfully logged in, on subsequent 
@@ -368,27 +366,23 @@ pub async fn login_page(
 pub async fn login(
     request: HttpRequest,
     app_state: web::Data<super::AppState>,
-    body: Bytes
-) -> Either<impl Responder, HttpResponse> {
-    // Attempts to extract -- deserialising -- request body into EmployeeLogin.
-    let res = extract_employee_login(&body, request.content_type());
-    if res.is_err() {
-        return Either::Left(res.err().unwrap());
-    }
+    body: Either<web::Json<EmployeeLogin>, web::Form<EmployeeLogin>>
+) -> HttpResponse {
+    let submitted_login  = match body {
+        Either::Left(json) => json.into_inner(),
+        Either::Right(form) => form.into_inner(),
+    };
 
-    // Succeeded to deserialise request body.
-    let submitted_login: EmployeeLogin = res.unwrap();
     let query_result = select_employee(&app_state.db, &submitted_login.email).await;
-
     if query_result.is_none() {
-        return Either::Right(first_stage_login_error_response(&request, LOGIN_FAILURE_MSG));
+        return first_stage_login_error_response(&request, LOGIN_FAILURE_MSG);
     }
 
     let selected_login = query_result.unwrap();
 
     let res = match_password_response(&request, &submitted_login, &selected_login);
     if res.is_err() {
-        return Either::Right(res.err().unwrap());
+        return res.err().unwrap();
     }
 
     // TO_DO: Work in progress -- future implementations will formalise access token.
@@ -400,13 +394,13 @@ pub async fn login(
 
     // The request content type is "application/x-www-form-urlencoded", returns the home page.
     if request.content_type() == ContentType::form_url_encoded().to_string() {
-        Either::Right( HttpResponse::Ok()
+        HttpResponse::Ok()
             // Note this header.
             .append_header((header::AUTHORIZATION, String::from(access_token)))
             // Note this client-side cookie.
             .cookie(build_authorization_cookie(&request, access_token))
             .content_type(ContentType::html())
-            .body(render_home_page(&request))
+            .body(render_home_page(&request)
         )
     }
     else {
@@ -415,13 +409,13 @@ pub async fn login(
         // 
         // Token field is the access token which the users need to include in the future 
         // requests to get authenticated and hence access to protected resources.		
-        Either::Right( HttpResponse::Ok()
+        HttpResponse::Ok()
             // Note this header.
             .append_header((header::AUTHORIZATION, String::from(access_token)))
             // Note this client-side cookie.
             .cookie(build_authorization_cookie(&request, access_token))
             .content_type(ContentType::json())
-            .body(login_success_json_response(&selected_login.email, &access_token))
+            .body(login_success_json_response(&selected_login.email, &access_token)
         )
     }
 }
