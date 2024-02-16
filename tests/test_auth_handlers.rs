@@ -33,7 +33,11 @@
 //!     * cargo test get_home_page_html -- --exact
 //!     * cargo test get_login_page_html -- --exact
 //!     * cargo test post_login_html -- --exact
+//!     * cargo test post_login_html_error_empty -- --exact
+//!     * cargo test post_login_html_missing_field -- --exact
 //!     * cargo test post_login_json -- --exact
+//!     * cargo test post_login_json_error_empty -- --exact
+//!     * cargo test post_login_json_missing_field -- --exact
 //!     * cargo test post_login_html_failure_1 -- --exact
 //!     * cargo test post_login_html_failure_2 -- --exact
 //!     * cargo test post_login_html_failure_3 -- --exact
@@ -119,6 +123,58 @@ async fn post_login_html() {
 
 /// * Route: ``http://localhost:5000/api/login``
 /// * Method: ``POST``
+/// * Content Type: not set.
+/// * Body: not set.
+/// 
+#[actix_web::test]
+async fn post_login_html_error_empty() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let response = client
+        .post(make_api_url(&test_app.app_url, "/login"))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    // NOTE: "Content type error" message!!
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, "Content type error", false).await;
+}
+
+/// * Route: ``http://localhost:5000/api/login``
+/// * Method: ``POST``
+/// * Content Type: ``application/x-www-form-urlencoded``
+/// (``application/x-www-form-urlencoded; charset=UTF-8``).
+/// * Body: ``emaXXXil=chirstian.koblick.10004@gmail.com&password=password``
+/// 
+#[actix_web::test]
+async fn post_login_html_missing_field() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let mut params = HashMap::new();
+    params.insert("emaXXXil", "chirstian.koblick.10004@gmail.com");
+    params.insert("password", "password");
+
+    let response = client
+        .post(make_api_url(&test_app.app_url, "/login"))
+        .form(&params)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    // NOTE: "Content type error" message.
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, "Content type error", false).await;
+}
+
+/// * Route: ``http://localhost:5000/api/login``
+/// * Method: ``POST``
 /// * Content Type: ``application/json``
 /// * Body: ``{"email": "chirstian.koblick.10004@gmail.com", "password": "password"}``
 /// 
@@ -148,6 +204,58 @@ async fn post_login_json() {
     let email = "saniya.kalloufi.10008@gmail.com";
 
     common::assert_json_successful_login(response, email, access_token).await;
+}
+
+/// * Route: ``http://localhost:5000/api/login``
+/// * Method: ``POST``
+/// * Content Type: Not set.
+/// * Body: Not set.
+/// 
+#[actix_web::test]
+async fn post_login_json_error_empty() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let response = client
+        .post(make_api_url(&test_app.app_url, "/login"))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    //NOTE: "Content type error" message.
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, "Content type error", false).await;
+}
+
+/// * Route: ``http://localhost:5000/api/login``
+/// * Method: ``POST``
+/// * Content Type: ``application/json``
+/// * Body: ``{"emXXXail": "saniya.kalloufi.10008@gmail.com", "password": "password"}``
+/// 
+#[actix_web::test]
+async fn post_login_json_missing_field() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let mut json_data = HashMap::new();
+    json_data.insert("emXXXail", "saniya.kalloufi.10008@gmail.com");
+    json_data.insert("password", "password");
+
+    let response = client
+        .post(make_api_url(&test_app.app_url, "/login"))
+        .json(&json_data)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+
+    common::assert_access_token_not_in_header(&response);
+    common::assert_access_token_not_in_cookie(&response);
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, "missing field `email`", true).await;
 }
 
 /// No match on email. Returns login HTML page with message 
@@ -248,7 +356,7 @@ async fn post_login_html_failure_3() {
     common::assert_access_token_not_in_header(&response);
     common::assert_access_token_not_in_cookie(&response);
     common::assert_json_failure(response, StatusCode::BAD_REQUEST, 
-        "missing field `email`", true).await;
+        "Content type error", false).await;
 }
 
 /// No match on email. Returns JSON [`learn_actix_web::bh_utils::api_status::ApiStatus`] 
