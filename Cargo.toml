@@ -27,7 +27,6 @@ tera = "1.19.1"
 futures-util = "0.3"
 
 mime = "0.3.17"
-serde_html_form = "0.2.3"
 
 actix-session = {version = "0.8.0", features = ["redis-rs-session"]}
 actix-identity = "0.6.0"
