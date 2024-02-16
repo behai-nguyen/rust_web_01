@@ -30,8 +30,12 @@
 //! To run a specific test method: 
 //! 
 //!     * cargo test post_employees_json1 -- --exact
+//!     * cargo test post_employees_json1_error_empty -- --exact
+//!     * cargo test post_employees_json1_error_missing_field -- --exact
 //!     * cargo test get_employees_json2 -- --exact
 //!     * cargo test post_employees_html1 -- --exact
+//!     * cargo test post_employees_html1_error_empty -- --exact
+//!     * cargo test post_employees_html1_missing_field -- --exact
 //!     * cargo test get_employees_html2 -- --exact
 //!     * cargo test get_helloemployee_has_data -- --exact
 //!     * cargo test get_helloemployee_no_data -- --exact
@@ -95,6 +99,54 @@ async fn post_employees_json1() {
         assert_eq!(emp.birth_date, date!(1955 - 12 - 14));
         assert_eq!(emp.hire_date, date!(1985 - 04 - 26));        
     }
+}
+
+/// * Route: ``http://localhost:5000/data/employees``
+/// * Method: ``POST``
+/// * Content Type: not set.
+/// * Body: not set.
+#[actix_web::test]
+async fn post_employees_json1_error_empty() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let response = client
+        .post(make_data_url(&test_app.app_url, "/employees"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        // .header(header::CONTENT_TYPE, ContentType::json().to_string())
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // NOTE: "Content type error" message.
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, "Content type error", false).await;
+}
+
+/// * Route: ``http://localhost:5000/data/employees``
+/// * Method: ``POST``
+/// * Content Type: ``application/json``
+/// * Body: ``{"lasXXXt_name": "%chi", "first_name": "%ak"}``
+#[actix_web::test]
+async fn post_employees_json1_error_missing_field() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let mut json_data = HashMap::new();
+    json_data.insert("lasXXXt_name", "%chi");
+    json_data.insert("first_name", "%ak");
+
+    let response = client
+        .post(make_data_url(&test_app.app_url, "/employees"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .json(&json_data)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, 
+        "missing field `last_name`", true).await;
 }
 
 /// * Route: ``http://localhost:5000/data/employees/%chi/%ak``; i.e., /employees/{last_name}/{first_name}.
@@ -161,6 +213,53 @@ async fn post_employees_html1() {
         assert!(html.contains("<td>Siamak</td>"), "HTML: first name Siamak not found.");
         assert!(html.contains("<td>Bernardeschi</td>"), "HTML: last name Bernardeschi not found.");
     }
+}
+
+/// * Route: ``http://localhost:5000/ui/employees``
+/// * Method: ``POST``
+/// * Content Type: not set.
+/// * Body: not set.
+#[actix_web::test]
+async fn post_employees_html1_error_empty() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let response = client
+        .post(make_ui_url(&test_app.app_url, "/employees"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    //NOTE: "Content type error." message.
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, "Content type error.", false).await;
+}
+
+/// * Route: ``http://localhost:5000/ui/employees``
+/// * Method: ``POST``
+/// * Content Type: ``application/x-www-form-urlencoded; charset=UTF-8``
+/// * Body: ``last_name=%chi&first_YYYname=%ak``
+#[actix_web::test]
+async fn post_employees_html1_missing_field() {
+    let test_app = &spawn_app().await;
+
+    let client = common::reqwest_client();
+
+    let mut params = HashMap::new();
+    params.insert("last_name", "%chi");
+    params.insert("first_YYYname", "%ak");
+
+    let response = client
+        .post(make_ui_url(&test_app.app_url, "/employees"))
+        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .form(&params)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    common::assert_json_failure(response, StatusCode::BAD_REQUEST, 
+        "missing field `first_name`", true).await;
 }
 
 /// * Route: ``http://localhost:5000/ui/employees/%chi/%ak``; i.e., /employees/{last_name}/{first_name}.
