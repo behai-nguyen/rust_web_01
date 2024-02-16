@@ -15,6 +15,8 @@ use crate::bh_libs::api_status::ApiStatus;
 // use crate::helper::html_renderer::render_home_page;
 // use crate::models::LoginSuccessResponse;
 
+use crate::helper::endpoint::serialise_api_status;
+
 /// Creates and returns a cookie.
 /// 
 /// # Arguments
@@ -271,6 +273,23 @@ impl Responder for ApiStatus {
             .cookie(remove_original_content_type_cookie(request))            
             .body(serde_json::to_string(&self).unwrap())
     }
+}
+
+/// Creates and returns a serialised version of [`ApiStatus`] as [`actix_web::HttpResponse`].
+/// 
+/// # Return
+/// 
+/// * JSON of [`ApiStatus`] as [`actix_web::HttpResponse`].
+/// 
+pub fn make_api_status_response(
+    status_code: StatusCode,
+    message: &str,
+    session_id: Option<String>
+) -> HttpResponse {
+    HttpResponse::Ok()
+        .status(status_code)
+        .content_type(ContentType::json())
+        .body(serialise_api_status(status_code, message, session_id)) 
 }
 
 /*
