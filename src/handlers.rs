@@ -33,6 +33,25 @@ use crate::middleware::Msg;
 /// * Content Type: ``application/json``
 /// * Body: ``{"last_name": "%chi", "first_name": "%ak"}``
 /// 
+/// # Return
+/// 
+/// * Success: JSON. Failure: JSON.
+/// 
+/// * Response status code: looks for [OK](`actix_web::http::StatusCode::OK`),
+/// [BAD_REQUEST](`actix_web::http::StatusCode::BAD_REQUEST`) or 
+/// [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`).
+/// 
+/// * Response status code of [OK](`actix_web::http::StatusCode::OK`) is a successful
+/// response. The actual response is a JSON array of serialised [Employee](`crate::models::Employee`).
+/// 
+/// * Response status codes of the later two indicate a failure response. The actual 
+/// response is a JSON serialised of [ApiStatus](`crate::bh_libs::api_status::ApiStatus`).
+/// 
+/// # TO_DO
+/// 
+/// For successful responses, make [ApiStatus](`crate::bh_libs::api_status::ApiStatus`) 
+/// the header part of the response, the JSON array mentioned is ``data`` field.
+/// 
 #[post("/employees")]
 pub async fn employees_json1(
     _: HttpRequest,
@@ -60,6 +79,25 @@ pub async fn employees_json1(
 /// 
 /// * Route: ``http://localhost:5000/data/employees/%chi/%ak``
 /// * Method: ``GET``
+/// 
+/// # Return
+/// 
+/// * Success: JSON. Failure: JSON.
+/// 
+/// * Response status code: looks for [OK](`actix_web::http::StatusCode::OK`),
+/// [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`).
+/// 
+/// * Response status code of [OK](`actix_web::http::StatusCode::OK`) is a successful
+/// response. The actual response is a JSON array of serialised [Employee](`crate::models::Employee`).
+/// 
+/// * Response status code of [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`) 
+/// indicates a failure response. The actual response is a JSON serialised of 
+/// [ApiStatus](`crate::bh_libs::api_status::ApiStatus`).
+/// 
+/// # TO_DO
+/// 
+/// For successful responses, make [ApiStatus](`crate::bh_libs::api_status::ApiStatus`) 
+/// the header part of the response, the JSON array mentioned is ``data`` field.
 /// 
 #[get("/employees/{last_name}/{first_name}")]
 pub async fn employees_json2(
@@ -119,6 +157,20 @@ fn render_employees_template(employees: &Vec<Employee>) -> String {
 /// * Content Type: ``application/x-www-form-urlencoded; charset=UTF-8``
 /// * Body: ``last_name=%chi&first_name=%ak``
 /// 
+/// # Return
+/// 
+/// * Success: HTML. Failure: JSON.
+/// 
+/// * Response status code: looks for [OK](`actix_web::http::StatusCode::OK`),
+/// [BAD_REQUEST](`actix_web::http::StatusCode::BAD_REQUEST`) or 
+/// [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`).
+/// 
+/// * Response status code of [OK](`actix_web::http::StatusCode::OK`) is a successful
+/// response. The actual response is a HTML rendered of [Employee](`crate::models::Employee`).
+/// 
+/// * Response status codes of the later two indicate a failure response. The actual 
+/// response is a JSON serialised of [ApiStatus](`crate::bh_libs::api_status::ApiStatus`).
+/// 
 #[post("/employees")]
 pub async fn employees_html1(
     _: HttpRequest,
@@ -149,7 +201,21 @@ pub async fn employees_html1(
 /// 
 /// * Route: ``http://localhost:5000/ui/employees/%chi/%ak``
 /// * Method: ``GET``
-///
+/// 
+/// # Return
+/// 
+/// * Success: HTML. Failure: JSON.
+/// 
+/// * Response status code: looks for [OK](`actix_web::http::StatusCode::OK`) 
+/// or [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`).
+/// 
+/// * Response status code of [OK](`actix_web::http::StatusCode::OK`) is a successful
+/// response. The actual response is a HTML rendered of [Employee](`crate::models::Employee`).
+/// 
+/// * Response status code of [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`) 
+/// indicates a failure response. The actual response is a JSON serialised of 
+/// [ApiStatus](`crate::bh_libs::api_status::ApiStatus`).
+/// 
 #[get("/employees/{last_name}/{first_name}")]
 pub async fn employees_html2(
     req: HttpRequest,
@@ -188,6 +254,20 @@ pub async fn employees_html2(
 /// ``req.extensions_mut().insert(Msg(hello_msg.to_owned()));``. Recompile,
 /// then run with either of the examples listed above. We should get HTTP 500.
 ///
+/// # Return
+/// 
+/// * Success: HTML. Failure: JSON.
+/// 
+/// * Response status code: looks for [OK](`actix_web::http::StatusCode::OK`) 
+/// or [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`).
+/// 
+/// * Response status code of [OK](`actix_web::http::StatusCode::OK`) is a successful
+/// response. The actual response is a HTML rendered of an [Employee](`crate::models::Employee`).
+/// 
+/// * Response status codes of [UNAUTHORIZED](`actix_web::http::StatusCode::UNAUTHORIZED`) 
+/// indicates a failure response. The actual response is a JSON serialised of 
+/// [ApiStatus](`crate::bh_libs::api_status::ApiStatus`).
+/// 
 pub async fn hi_first_employee_found(msg: Option<ReqData<Msg>>) -> impl Responder {
     match msg {
         None => return HttpResponse::InternalServerError().body("No message found."),
