@@ -33,6 +33,8 @@ use crate::helper::app_utils::{
 use crate::bh_libs::api_status::ApiStatus;
 use crate::models::{EmployeeLogin, select_employee};
 
+use crate::helper::jwt_utils::{make_token, make_bearer_token};
+
 /// Renders the login page and return the complete content as a 
 /// [`std::string::String`].
 fn render_login_page(message: &str) -> String {
@@ -79,8 +81,8 @@ fn first_stage_login_error_response(
         .status(StatusCode::SEE_OTHER)
         .append_header((header::LOCATION, "/ui/login"))
         // Note these per-request server-side only cookies.
-        .cookie(build_original_content_type_cookie(&request, request.content_type()))
-        .cookie(build_login_redirect_cookie(&request, message))
+        .cookie(build_original_content_type_cookie(request.content_type()))
+        .cookie(build_login_redirect_cookie(message))
         .finish()
 }
 
@@ -258,9 +260,9 @@ pub async fn login_page(
                 .status(status_code)
                 .content_type(ContentType::html())
                 // Always removes cookie REDIRECT_MESSAGE.
-                .cookie(remove_login_redirect_cookie(&request))
+                .cookie(remove_login_redirect_cookie())
                 // Always removes cookie ORIGINAL_CONTENT_TYPE.
-                .cookie(remove_original_content_type_cookie(&request))
+                .cookie(remove_original_content_type_cookie())
                 .body(render_login_page(&message)) 
         )
     }
@@ -276,9 +278,7 @@ pub async fn login_page(
 /// It accepts request body in both ``application/x-www-form-urlencoded`` and 
 /// ``application/json`` content types.
 /// 
-/// *This current implementation does only email and password matching. And no session
-/// time out. That is, once logged in, it stays valid forever till explicitly being 
-/// logged out, or the browser is terminated.*
+/// The login process implemented the JSON Web Token authentication.
 /// 
 /// The log in process is simple: 
 /// 
@@ -291,7 +291,7 @@ pub async fn login_page(
 /// 3. The ``database password`` is de-hashed and compared against the ``submitted password``, 
 /// if does not match, log in fails. 
 /// 
-/// 4. If none fails, log in succeeds.
+/// 4. If none fails, log in succeeds. The email forms part the JSON Web Token payload.
 /// 
 /// # Arguments
 /// 
@@ -385,20 +385,20 @@ pub async fn login(
         return res.err().unwrap();
     }
 
-    // TO_DO: Work in progress -- future implementations will formalise access token.
-    let access_token = &selected_login.email;
+    let access_token = make_token(&selected_login.email, 
+        app_state.cfg.jwt_secret_key.as_ref(), app_state.cfg.jwt_mins_valid_for * 60);
 
     // https://docs.rs/actix-identity/latest/actix_identity/
     // Attach a verified user identity to the active session
-    Identity::login(&request.extensions(), String::from(access_token)).unwrap();
+    Identity::login(&request.extensions(), String::from( make_bearer_token(&access_token) )).unwrap();
 
     // The request content type is "application/x-www-form-urlencoded", returns the home page.
     if request.content_type() == ContentType::form_url_encoded().to_string() {
         HttpResponse::Ok()
             // Note this header.
-            .append_header((header::AUTHORIZATION, String::from(access_token)))
+            .append_header((header::AUTHORIZATION, String::from(&access_token)))
             // Note this client-side cookie.
-            .cookie(build_authorization_cookie(&request, access_token))
+            .cookie(build_authorization_cookie(&access_token))
             .content_type(ContentType::html())
             .body(render_home_page(&request)
         )
@@ -411,9 +411,9 @@ pub async fn login(
         // requests to get authenticated and hence access to protected resources.		
         HttpResponse::Ok()
             // Note this header.
-            .append_header((header::AUTHORIZATION, String::from(access_token)))
+            .append_header((header::AUTHORIZATION, String::from(&access_token)))
             // Note this client-side cookie.
-            .cookie(build_authorization_cookie(&request, access_token))
+            .cookie(build_authorization_cookie(&access_token))
             .content_type(ContentType::json())
             .body(login_success_json_response(&selected_login.email, &access_token)
         )
@@ -440,7 +440,7 @@ pub async fn home_page(
         // If this handler was called as a result of auth_middleware.rs redirection,
         // then this cookie would have been set, but it is unused in this case. Gets
         // rid of it as a matter of cleanliness.
-        .cookie(remove_original_content_type_cookie(&request))
+        .cookie(remove_original_content_type_cookie())
         .body(render_home_page(&request))
 }
 
@@ -459,14 +459,14 @@ pub async fn home_page(
 ///
 #[post("/logout")]
 async fn logout(
-    request: HttpRequest,
+    _: HttpRequest,
     user: Identity
 ) -> impl Responder {
     user.logout();
 
     HttpResponse::Ok()
         // Note the cookie.
-        .cookie(remove_authorization_cookie(&request))
+        .cookie(remove_authorization_cookie())
         .status(StatusCode::SEE_OTHER)
         .append_header((header::LOCATION, "/ui/login"))
         .finish()
