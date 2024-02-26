@@ -5,12 +5,17 @@
 
 use std::{fs::File, io::Read as _,};
 use std::net::TcpListener;
+use actix_web::HttpMessage;
 use dotenv::dotenv;
 use sqlx::{Pool, MySql};
 use actix_web::{
     dev::Server, error, cookie::{Key, SameSite}, 
-    http::{header, StatusCode}, web, App, HttpServer
+    http::{header, StatusCode}, web, App, HttpServer,
+    dev::Service as _
 };
+
+use futures_util::future::FutureExt;
+
 use openssl::{pkey::{PKey, Private}, ssl::{SslAcceptorBuilder, SslAcceptor, SslMethod},};
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
 use actix_identity::IdentityMiddleware;
@@ -29,10 +34,16 @@ pub mod middleware;
 pub mod auth_middleware;
 pub mod auth_handlers;
 
-use crate::helper::app_utils::make_api_status_response;
+use crate::helper::app_utils::{
+    make_api_status_response,
+    build_authorization_cookie,
+};
+
+use crate::helper::messages::TOKEN_STR_JWT_MSG;
 
 pub struct AppState {
-    db: Pool<MySql>
+    db: Pool<MySql>,
+    cfg: config::Config,
 }
 
 /// See https://github.com/actix/examples/tree/master/https-tls/openssl
@@ -137,10 +148,41 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
 
         App::new()
             .app_data(web::Data::new(AppState {
-                db: pool.clone()
+                db: pool.clone(),
+                cfg: config.clone()
             }))
             .app_data(json_config())
             .app_data(form_config())
+            //
+            // This adhoc middleware looks for the updated access token String attachment in 
+            // the request extension, if there is one, extracts it and sends it to the client 
+            // via both the ``authorization`` header and cookie.
+            //
+            .wrap_fn(|req, srv| {
+                let mut updated_access_token: Option<String> = None;
+
+                // Get set in src/auth_middleware.rs's 
+                // fn update_and_set_updated_token(request: &ServiceRequest, token_status: TokenStatus).
+                if let Some(token) = req.extensions_mut().get::<String>() {
+                    updated_access_token = Some(token.to_string());
+                }
+
+                srv.call(req).map(move |mut res| {
+
+                    if updated_access_token.is_some() {
+                        let token = updated_access_token.unwrap();
+                        res.as_mut().unwrap().headers_mut().append(
+                            header::AUTHORIZATION, 
+                            header::HeaderValue::from_str(token.as_str()).expect(TOKEN_STR_JWT_MSG)
+                        );
+
+                        let _ = res.as_mut().unwrap().response_mut().add_cookie(
+                            &build_authorization_cookie(&token));
+                    };
+
+                    res
+                })
+            })            
             .wrap(auth_middleware::CheckLogin)
             .wrap(IdentityMiddleware::default())
             .wrap(SessionMiddleware::builder(
