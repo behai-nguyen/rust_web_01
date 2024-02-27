@@ -52,7 +52,7 @@ use actix_web::http::{StatusCode, header, header::ContentType};
 use learn_actix_web::models::Employee;
 
 mod common;
-use common::{spawn_app, make_full_url, make_data_url, make_ui_url};
+use common::{spawn_app, JWT_SECS_VALID_FOR, make_full_url, make_data_url, make_ui_url};
 
 use learn_actix_web::helper::messages::UNAUTHORISED_ACCESS_MSG;
 
@@ -78,7 +78,7 @@ async fn post_employees_json1() {
 
     let response = client
         .post(make_data_url(&test_app.app_url, "/employees"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .json(&json_data)
         .send()
         .await
@@ -113,7 +113,7 @@ async fn post_employees_json1_error_empty() {
 
     let response = client
         .post(make_data_url(&test_app.app_url, "/employees"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         // .header(header::CONTENT_TYPE, ContentType::json().to_string())
         .send()
         .await
@@ -139,7 +139,7 @@ async fn post_employees_json1_error_missing_field() {
 
     let response = client
         .post(make_data_url(&test_app.app_url, "/employees"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .json(&json_data)
         .send()
         .await
@@ -159,7 +159,7 @@ async fn get_employees_json2() {
 
     let response = client
         .get(make_data_url(&test_app.app_url, "/employees/%chi/%ak"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -197,7 +197,7 @@ async fn post_employees_html1() {
 
     let response = client
         .post(make_ui_url(&test_app.app_url, "/employees"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .form(&params)
         .send()
         .await
@@ -227,7 +227,7 @@ async fn post_employees_html1_error_empty() {
 
     let response = client
         .post(make_ui_url(&test_app.app_url, "/employees"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -252,7 +252,7 @@ async fn post_employees_html1_missing_field() {
 
     let response = client
         .post(make_ui_url(&test_app.app_url, "/employees"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .form(&params)
         .send()
         .await
@@ -272,7 +272,7 @@ async fn get_employees_html2() {
 
     let response = client
         .get(make_ui_url(&test_app.app_url, "/employees/%chi/%ak"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -299,7 +299,7 @@ async fn get_helloemployee_has_data() {
 
     let response = client
         .get(make_full_url(&test_app.app_url, "/helloemployee/%chi/%ak"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .send()
         .await
         .expect("Failed to execute request.");    
@@ -325,7 +325,7 @@ async fn get_helloemployee_no_data() {
 
     let response = client
         .get(make_full_url(&test_app.app_url, "/helloemployee/%xx/%yy"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .send()
         .await
         .expect("Failed to execute request.");    
