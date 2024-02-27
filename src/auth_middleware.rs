@@ -10,67 +10,120 @@
 //! 
 //! Most of the works are in the ``call(...)`` method.
 //! 
+//! # Notes On Routes
+//! 
+//! * ``/ui/login``: the actual HTML login page.
+//! 
+//! * ``/api/login``: the actual login / authentication process.
+//! 
+//! * ``/ui/home``: the actual HTML home page.
+//!
 //! # How This Middleware Works
+//!
+//! * If request to ``/favicon.ico`` should just go through.
+//!
+//! * Determine the status of the token.
+//!
+//! * If the token is invalid, return [Unauthorized()](https://docs.rs/actix-web/latest/actix_web/struct.HttpResponse.html#method.Unauthorized)
+//!   whose body is JSON serialisation of [ApiStatus](`crate::bh_libs::api_status::ApiStatus`),
+//!   which contains the token invalid reason. **The request is completed.**
 //! 
-//! * Notes On Routes
-//! 
-//!     - ``/ui/login``: the actual HTML login page.
-//! 
-//!     - ``/api/login``: the actual login / authentication process.
-//! 
-//!     - ``/ui/home``: the actual HTML home page.
-//! 
-//! * When Authenticated
+//! * When authenticated
+//!
+//!     - Update the current [JWTPayload](`crate::helper::jwt_utils::JWTPayload`) to new expiry 
+//!       and last active. Make a new token from  this updated [JWTPayload](`crate::helper::jwt_utils::JWTPayload`). 
+//!
+//!     - Then replace [actix-identity](https://docs.rs/actix-identity/0.7.0/actix_identity/)
+//!       [Identity](https://docs.rs/actix-identity/0.7.0/actix_identity/struct.Identity.html) 
+//!       login with this updated token. 
+//!
+//!     - Finally, set updated token to request extension, so that the next middleware can pick 
+//!       it up and send it to clients via both response header and response cookie ``authorization``. 
 //! 
 //!     - Requests to routes ``/ui/login`` and ``/api/login`` are redirected to 
 //!       ``/ui/home``. **WIP**: should the response be based on the original request 
 //!       content type? I.e., if the original request is in ``application/x-www-form-urlencoded``, 
 //!       then redirects to ``/ui/home``. Otherwise, if it is ``application/json``, then some 
-//!       kind of JSON based on [`super::models::LoginSuccessResponse`].
+//!       kind of JSON based on [LoginSuccessResponse](`super::models::LoginSuccessResponse`).
 //! 
 //!     - Requests to any other routes should go through as is.
 //! 
-//! * When Not Authenticated
+//! * When not authenticated
 //! 
 //!     - Requests to routes ``/ui/login`` and ``/api/login`` should go through.
 //! 
 //!     - Requests to any other route should get redirected to ``/ui/login``.
-//!       See [`crate::auth_handlers::login_page`] for more detail on response.
+//!       See [login_page](`crate::auth_handlers::login_page`) for more detail on response.
 //! 
 use std::future::{ready, Ready};
 
 use actix_web::{
-    body::EitherBody,
-    dev::{self, Service, ServiceRequest, ServiceResponse, Transform},
-    http::header, Error, HttpResponse, HttpMessage,
+    body::EitherBody, dev::{self, Service, ServiceRequest, ServiceResponse, Transform}, 
+    http::header, web::Data, Error, HttpMessage, HttpResponse, 
 };
 
 use futures_util::future::LocalBoxFuture;
-use actix_identity::IdentityExt;
 
-use crate::helper::app_utils::{
+use actix_identity::{IdentityExt, Identity};
+
+use crate::{bh_libs::api_status::ApiStatus, helper::app_utils::{
     build_login_redirect_cookie,
-    build_original_content_type_cookie
-};
+    build_original_content_type_cookie,
+    remove_login_redirect_cookie,
+    remove_original_content_type_cookie
+}};
 
 use crate::helper::messages::UNAUTHORISED_ACCESS_MSG;
 
-/// Attempt to extracts access token from request header [`actix_web::http::header::AUTHORIZATION`], 
-/// request cookie [`actix_web::http::header::AUTHORIZATION`], and request actix-identity 
+use super::AppState;
+use crate::helper::jwt_utils::{
+    JWTPayload, decode_bearer_token, 
+    make_token_from_payload, make_bearer_token
+};
+
+/// The "status" of the token. Might be use another name?
+/// Both ``payload`` and ``api_status`` can be None. But otherwise they are
+/// mutually exclusive.
+///
+/// * When ``is_logged_in`` is ``false``, ``api_status`` might or might not be set:
+///
+///     * If ``api_status`` is set, then the token is in error.
+///
+///     * If ``api_status`` is not set, that means there is no token / login yet. 
+///       Token is not in error.
+///
+/// * When ``is_logged_in`` is ``true``, ``payload`` is set. This an authenticated
+///   web session.
+///
+struct TokenStatus {
+    is_logged_in: bool,
+    payload: Option<JWTPayload>,
+    api_status: Option<ApiStatus>
+}
+
+/// Attempt to extracts access token from request header 
+/// [AUTHORIZATION](`actix_web::http::header::AUTHORIZATION`), 
+/// request cookie [AUTHORIZATION](`actix_web::http::header::AUTHORIZATION`), and request 
+/// [actix-identity](https://docs.rs/actix-identity/0.7.0/actix_identity/) 
 /// extension using Redis.
 /// 
 /// **Work In Progress**: cookie extraction code works, but is commented out at present.
-/// This is to assertain that we could always indeed rely on actix-identity to manage the 
-/// token as documented.
+/// This is to assertain that we could always indeed rely on 
+/// [actix-identity](https://docs.rs/actix-identity/0.7.0/actix_identity/)
+/// to manage the token as documented.
 /// 
 /// # Notes on Request Identity, Header and Cookie
 /// 
-/// * Request actix-identity exension using Redis persists the identity, i.e. the access 
-/// token, across requests when using a HTML client.
+/// * Request [actix-identity](https://docs.rs/actix-identity/0.7.0/actix_identity/)
+/// exension using Redis persists the identity, i.e. the access 
+/// token, across requests when using a HTML client. That is, the application acts as
+/// an application server. 
 /// 
 /// * When using clients such as Testfully, or AJAX calls, etc., after logged in, clients need
-/// to remember this token locally, and set it to request [`actix_web::http::header::AUTHORIZATION`] 
-/// header on subsequent requests to access protected resources.
+/// to remember this token locally, and set it to request 
+/// [AUTHORIZATION](`actix_web::http::header::AUTHORIZATION`)
+/// header on subsequent requests to access protected resources. That is, the application acts
+/// as an API-like server or a service.
 /// 
 /// # Arguments
 /// 
@@ -111,41 +164,78 @@ fn extract_access_token(
     None
 }
 
-/// Verify that there is a valid access token for the current request.
-/// 
-/// **Work In Progress** definition of *a valid token*
-/// 
-/// In this implementation, *valid* is simply a non-blank string!
+/// Verify that there is a valid JSON Web Token access token for the current request.
 /// 
 /// # Arguments
 /// 
-/// * `request` - from the calling middleware.
+/// * `request` - contains [AppState](`super::AppState`).
 /// 
 /// # Return
 /// 
-/// * ``true`` if the current request has an access token, and the token is valid.
-/// ``false`` otherwise.
-/// 
+/// * [`TokenStatus`].
+///
 fn verify_valid_access_token(
     request: &ServiceRequest
-) -> bool {
+) -> TokenStatus {
     // Attempts to extract the access token from the current request.
     let res = extract_access_token(request);
-    // There is no token! Token is not valid.
+
+    // There is no token! 
+    // Not a logged in web session. Not an error.
     if res.is_none() {
-        return false;
+        return TokenStatus{is_logged_in: false, payload: None, api_status: None};
     }
 
-    // Getting the actual access token as a string.
-    let auth_token = res.unwrap();
+    // Retrieve the application state, where the Config object is.
+    let app_state = request.app_data::<Data<AppState>>().cloned().unwrap();
 
-    // TO_DO: token is a non-blank string. Token is valid!
-    if auth_token.len() > 0 {
-        return true;
+    // Decode the access token to verify validity.
+    // res.unwrap() -- the actual access token as a string.
+    let res = decode_bearer_token(&res.unwrap(), app_state.cfg.jwt_secret_key.as_ref());
+
+    if res.is_ok() {
+        // Token is valid and not expired.
+        TokenStatus{is_logged_in: true, payload: Some(res.unwrap()), api_status: None}
     }
+    else {
+        // Token is not valid. Set api_status to the invalid reason.
+        TokenStatus{is_logged_in: false, payload: None, api_status: Some(res.err().unwrap())}
+    }
+}
 
-    // Token is not valid.
-    false
+/// The access token is valid. Update the current [JWTPayload](`crate::helper::jwt_utils::JWTPayload`) 
+/// to new expiry and last active. Make a new token from this updated 
+/// [JWTPayload](`crate::helper::jwt_utils::JWTPayload`). Then replace 
+/// [actix-identity](https://docs.rs/actix-identity/0.7.0/actix_identity/)
+/// [Identity](https://docs.rs/actix-identity/0.7.0/actix_identity/struct.Identity.html) login with 
+/// this updated token. Finally, set updated token to request extension, so that the next middleware 
+/// can pick it up and send it to clients via both response header and response cookie ``authorization``.
+/// 
+/// # Arguments
+/// 
+/// * `request` - contains [AppState](`super::AppState`).
+///
+/// * ``token_status`` -- contains the current [JWTPayload](`crate::helper::jwt_utils::JWTPayload`).
+///
+fn update_and_set_updated_token(request: &ServiceRequest, token_status: TokenStatus) {
+    // Retrieve the application state, where the config (.env) object is.
+    let app_state = request.app_data::<Data<AppState>>().cloned().unwrap();
+
+    // Access the current JWTPayload.
+    let current_payload = token_status.payload.unwrap().clone();
+
+    // Update current JWTPayload's expiry, last active. And make a new token from this 
+    // updated JWTPayload.
+    let updated_token = make_token_from_payload(
+        &current_payload.update_expiry_secs(app_state.cfg.jwt_mins_valid_for * 60), 
+        app_state.cfg.jwt_secret_key.as_ref());
+
+    // Replace actix-identity Identity login with updated token.
+    Identity::login(&request.extensions(), String::from( make_bearer_token(&updated_token) )).unwrap();
+
+    // Attach the updated token to request extension, so that the next middleware can pick it 
+    // up and send it to clients via both response header and response cookie ``authorization``.
+    request.extensions_mut().insert(updated_token);
 }
 
 /// The middleware factory. Naming and declaration remain as per 
@@ -214,13 +304,13 @@ where
 
             // Remembers the content type for the next anew redirected request.
             builder.insert_header((header::LOCATION, route))
-                .cookie(build_original_content_type_cookie(&request, request.content_type()));
+                .cookie(build_original_content_type_cookie(request.content_type()));
 
             // If redirected to "/ui/login", then users must have attempted to access a 
             // protected resource while not logged in. Remembers the redirection, and the 
             // reason for the next anew redirected request.
             if route == "/ui/login" {
-                builder.cookie(build_login_redirect_cookie(&request, UNAUTHORISED_ACCESS_MSG));
+                builder.cookie(build_login_redirect_cookie(UNAUTHORISED_ACCESS_MSG));
             }
 
             let response = builder.finish().map_into_right_body();
@@ -236,6 +326,21 @@ where
             redirect_to_route(req, "/ui/home")
         };
 
+        // This closure just return a 401 response to the clients. The body of the response
+        // is the JSON serialisation of api_status: ApiStatus.
+        let unauthorised_token = |req: ServiceRequest, api_status: ApiStatus| -> Self::Future {
+            let (request, _pl) = req.into_parts();
+
+            let response = HttpResponse::Unauthorized()
+                .insert_header((header::CONTENT_TYPE, header::ContentType::json()))
+                .cookie(remove_login_redirect_cookie())
+                .cookie(remove_original_content_type_cookie())            
+                .body(serde_json::to_string(&api_status).unwrap())
+                .map_into_right_body();
+
+            Box::pin(async { Ok(ServiceResponse::new(request, response)) })
+        };        
+
         // TO_DO: Windows IIS! This feels like a hack, I'm not sure how to handle this.
         // Or this is even correct. Please be careful.
         //
@@ -245,27 +350,37 @@ where
              return call_request(request);
         }
 
-        // TO_DO: Work in progress.
-        // Check if access token exists? If exists, is it valid?
-        let is_logged_in = verify_valid_access_token(&request);
+        // Determine the status of the token.
+        let token_status = verify_valid_access_token(&request);
 
-        match is_logged_in {
+        // The token is invalid.
+        if !token_status.is_logged_in && token_status.api_status.is_some() {
+            return unauthorised_token(request, token_status.api_status.unwrap());
+        }
+
+        match token_status.is_logged_in {
             true => {
+                // Update token new expiry, last active.
+                // Replace actix-identity Identity login with updated token.
+                // Set updated token to request extension, so that the next middleware can pick it up
+                // and send it to clients via both response header and response cookie ``authorization``.
+                update_and_set_updated_token(&request, token_status);
+
                 match request.path().as_ref() {
-                    "/ui/login" | "/api/login" => return redirect_to_home(request),
-                    _ => return call_request(request)
+                    "/ui/login" | "/api/login" => redirect_to_home(request),
+                    _ => call_request(request)
                 }
             }
 
             false => {
                 match request.path().as_ref() {
-                    "/ui/login" => return call_request(request),
+                    "/ui/login" => call_request(request),
 
-                    "/api/login" => return call_request(request),
+                    "/api/login" => call_request(request),
 
-                    _ => return redirect_to_login(request)
+                    _ => redirect_to_login(request)
                 }
             }
-        };
+        }
     }
 }
