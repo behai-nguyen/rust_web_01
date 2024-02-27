@@ -102,6 +102,14 @@ git clone -b v0.9.0 https://github.com/behai-nguyen/rust_web_01.git
 
 Continuing with our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we implement global extractor error handlers for both <code>application/json</code> and <code>application/x-www-form-urlencoded</code> data. This enhances the robustness of the code. Subsequently, we refactor the login data extraction process to leverage the global extractor error handlers.
 
+10. [Rust: actix-web JSON Web Token authentication.](https://behainguyen.wordpress.com/2024/02/26/rust-actix-web-json-web-token-authentication/)
+
+```
+git clone -b v0.10.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+In the <a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/" title="Rust: simple actix-web email-password login and request authentication using middleware." target="_blank">sixth</a> post of our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we implemented a basic email-password login process with a placeholder for a <code>token</code>. In this post, we will implement a comprehensive JSON Web Token (JWT)-based authentication system. We will utilise the <a href="https://docs.rs/jsonwebtoken/latest/jsonwebtoken/index.html" title="jsonwebtoken" target="_blank">jsonwebtoken</a> crate, which we have <a href="https://behainguyen.wordpress.com/2023/11/20/rust-json-web-token-some-investigative-studies-on-crate-jsonwebtoken/" title="Rust: JSON Web Token -- some investigative studies on crate jsonwebtoken" target="_blank">previously studied</a>.
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
