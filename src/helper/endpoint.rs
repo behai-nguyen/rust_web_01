@@ -9,6 +9,8 @@ use serde_json;
 use crate::models::{LoginSuccess, LoginSuccessResponse};
 use crate::bh_libs::api_status::ApiStatus;
 
+use crate::helper::constants::TOKEN_TYPE;
+
 /// Returns an [`actix_web::http::StatusCode`] as an [`u16`].
 /// 
 pub fn http_status_code(status_code: StatusCode) -> u16 {
@@ -74,7 +76,10 @@ pub fn login_success_json_response(
 
     let r = LoginSuccessResponse {
         api_status: ApiStatus::new(http_status_code(StatusCode::OK)),
-        data: LoginSuccess { email: String::from(email), access_token: String::from(access_token) }
+        data: LoginSuccess { email: String::from(email), 
+            access_token: String::from(access_token),
+            token_type: String::from(TOKEN_TYPE)
+        }
     };
 
     serde_json::to_string(&r).unwrap()
