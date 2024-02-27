@@ -21,8 +21,6 @@ use crate::helper::endpoint::serialise_api_status;
 /// 
 /// # Arguments
 /// 
-/// * `request` - the original HTTP request. 
-/// 
 /// * `name` - the name of the cookie.
 /// 
 /// * `value` - the value of the cookie.
@@ -38,19 +36,12 @@ use crate::helper::endpoint::serialise_api_status;
 /// * [`actix_web::cookie::Cookie`].
 /// 
 pub fn build_cookie<'a>(
-    _request: &'a HttpRequest,
     name: &'a str,
     value: &'a str,
     server_only: bool,
     removal: bool
 ) -> Cookie<'a> {
-    // Header "host" should always be in the request headers.
-    // let host = request.headers().get("host").unwrap().to_str().unwrap().to_owned();
-    // Remove the port if any.
-    // let parts = host.split(":");
-
     let mut cookie = Cookie::build(name, value)
-        // .domain(String::from(parts.collect::<Vec<&str>>()[0]))
         .path("/")
         .secure(true)
         .http_only(server_only)
@@ -87,8 +78,6 @@ pub fn build_cookie<'a>(
 /// 
 /// # Arguments
 /// 
-/// * `request` - the original HTTP request. 
-/// 
 /// * `value` - the text message.
 /// 
 /// # Return
@@ -96,10 +85,9 @@ pub fn build_cookie<'a>(
 /// * [`actix_web::cookie::Cookie`].
 /// 
 pub fn build_login_redirect_cookie<'a> (
-    request: &'a HttpRequest,
     value: &'a str
 ) -> Cookie<'a> {
-    build_cookie(request, REDIRECT_MESSAGE, value, true, false)
+    build_cookie(REDIRECT_MESSAGE, value, true, false)
 }
 
 /// Creates and returns a server-side cookie to be removed, and whose name is 
@@ -113,8 +101,8 @@ pub fn build_login_redirect_cookie<'a> (
 /// 
 /// * [`actix_web::cookie::Cookie`].
 /// 
-pub fn remove_login_redirect_cookie(request: &HttpRequest) -> Cookie {
-    build_cookie(request, REDIRECT_MESSAGE, "", true, true)
+pub fn remove_login_redirect_cookie<'a>() -> Cookie<'a> {
+    build_cookie(REDIRECT_MESSAGE, "", true, true)
 }
 
 /// Creates and returns a cookie whose name is [`actix_web::http::header::AUTHORIZATION`].
@@ -123,8 +111,6 @@ pub fn remove_login_redirect_cookie(request: &HttpRequest) -> Cookie {
 /// 
 /// # Arguments
 /// 
-/// * `request` - the original HTTP request. 
-/// 
 /// * `access_token` - the access token value.
 /// 
 /// # Return
@@ -132,25 +118,20 @@ pub fn remove_login_redirect_cookie(request: &HttpRequest) -> Cookie {
 /// * [`actix_web::cookie::Cookie`].
 /// 
 pub fn build_authorization_cookie<'a>(
-    request: &'a HttpRequest,
     access_token: &'a str
 ) -> Cookie<'a> {
-    build_cookie(request, header::AUTHORIZATION.as_str(), access_token, false, false)
+    build_cookie(header::AUTHORIZATION.as_str(), access_token, false, false)
 }
 
 /// Creates and returns a cookie to be removed, and whose name is 
 /// [`actix_web::http::header::AUTHORIZATION`].
 /// 
-/// # Arguments
-/// 
-/// * `request` - the original HTTP request. 
-/// 
 /// # Return
 /// 
 /// * [`actix_web::cookie::Cookie`].
 /// 
-pub fn remove_authorization_cookie(request: &HttpRequest) -> Cookie {
-    build_cookie(request, header::AUTHORIZATION.as_str(), "", false, true)
+pub fn remove_authorization_cookie<'a>() -> Cookie<'a> {
+    build_cookie(header::AUTHORIZATION.as_str(), "", false, true)
 }
 
 /// Creates and returns a server-side cookie whose name is [`crate::helper::constants::ORIGINAL_CONTENT_TYPE`].
@@ -216,8 +197,6 @@ pub fn remove_authorization_cookie(request: &HttpRequest) -> Cookie {
 /// 
 /// # Arguments
 /// 
-/// * `request` - the original HTTP request. 
-/// 
 /// * `value` - the content type string.
 /// 
 /// # Return
@@ -225,27 +204,20 @@ pub fn remove_authorization_cookie(request: &HttpRequest) -> Cookie {
 /// * [`actix_web::cookie::Cookie`].
 /// 
 pub fn build_original_content_type_cookie<'a>(
-    request: &'a HttpRequest,
     content_type: &'a str
 ) -> Cookie<'a> {
-    build_cookie(request, ORIGINAL_CONTENT_TYPE, content_type, true, false)
+    build_cookie(ORIGINAL_CONTENT_TYPE, content_type, true, false)
 }
 
 /// Creates and returns a server-side cookie to be removed, and whose name is 
 /// [`crate::helper::constants::ORIGINAL_CONTENT_TYPE`].
 /// 
-/// # Arguments
-/// 
-/// * `request` - the original HTTP request. 
-/// 
 /// # Return
 /// 
 /// * [`actix_web::cookie::Cookie`].
 /// 
-pub fn remove_original_content_type_cookie(
-    request: &HttpRequest,
-) -> Cookie {
-    build_cookie(request, ORIGINAL_CONTENT_TYPE, "", true, true)
+pub fn remove_original_content_type_cookie<'a>() -> Cookie<'a> {
+    build_cookie(ORIGINAL_CONTENT_TYPE, "", true, true)
 }
 
 /// See [Response with custom type](https://actix.rs/docs/handlers#response-with-custom-type).
@@ -262,15 +234,15 @@ pub fn remove_original_content_type_cookie(
 impl Responder for ApiStatus {
     type Body = BoxBody;
 
-    fn respond_to(self, request: &HttpRequest) -> HttpResponse<Self::Body> {
+    fn respond_to(self, _request: &HttpRequest) -> HttpResponse<Self::Body> {
         // Create response and set content type
         HttpResponse::Ok()
             .status( StatusCode::from_u16(self.get_code()).unwrap() )
             .content_type(ContentType::json())
             // Always removes cookie REDIRECT_MESSAGE.
-            .cookie(remove_login_redirect_cookie(request))
+            .cookie(remove_login_redirect_cookie())
             // Always removes cookie ORIGINAL_CONTENT_TYPE.
-            .cookie(remove_original_content_type_cookie(request))            
+            .cookie(remove_original_content_type_cookie())            
             .body(serde_json::to_string(&self).unwrap())
     }
 }
