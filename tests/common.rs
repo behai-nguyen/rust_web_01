@@ -8,20 +8,44 @@ use std::net::TcpListener;
 use actix_web::http::{StatusCode, header};
 use reqwest::tls::Certificate;
 
-use learn_actix_web::bh_libs::api_status::ApiStatus;
+use dotenv::dotenv;
+
+use learn_actix_web::bh_libs::api_status::{self, ApiStatus};
 use learn_actix_web::run;
 use learn_actix_web::models::LoginSuccessResponse;
 use learn_actix_web::helper::endpoint::http_status_code;
-// use learn_actix_web::helper::messages::LOGIN_FAILURE_MSG;
+
+use learn_actix_web::config::Config;
+
+use learn_actix_web::helper::jwt_utils::{
+    make_token,
+    decode_token
+};
+
+use learn_actix_web::helper::constants::{TOKEN_TYPE, BEARER_TOKEN};
+
+pub static JWT_SECS_VALID_FOR: u64 = 1800; // 30 minutes.
+
+/// Reads and returns the JWT_SECRET_KEY value from .env file.
+/// 
+pub fn jwt_secret_key() -> String {
+    dotenv().ok();
+    let config = Config::init();
+
+    String::from(config.jwt_secret_key)
+}
 
 pub struct TestApp {
     pub app_url: String,
 }
 
 impl TestApp {
-    pub fn mock_access_token(&self) -> String {
-        String::from("chirstian.koblick.10004@gmail.com")
-    }    
+    pub fn mock_access_token(&self, secs_valid_for: u64) -> String {
+        let token = make_token("chirstian.koblick.10004@gmail.com", 
+        jwt_secret_key().as_ref(), secs_valid_for);
+
+        BEARER_TOKEN.to_owned() + &token
+    }
 }
 
 pub async fn spawn_app() -> TestApp {
@@ -147,35 +171,52 @@ pub async fn assert_html_login_page(response: reqwest::Response) {
 
     // This should now always succeed.
     if let Ok(html) = res {
+        println!("\n===>\n {}\n", html);
         assert!(html.contains("<title>Rust Web 1 | Login</title>"), "HTML: title.");
         assert!(html.contains("<button type=\"submit\">Login</button>"), "HTML: Login button.");
     }    
 }
 
-pub fn assert_access_token_in_header(response: &reqwest::Response, access_token: &str) {
+pub fn assert_token_email(token: &str, email: &str) {
+    let res = decode_token(token, jwt_secret_key().as_ref());
+    assert_eq!(res.is_ok(), true);
+
+    let api_status = res.unwrap();
+    assert_eq!(api_status.email(), email);
+}
+
+pub fn assert_access_token_in_header(response: &reqwest::Response, email: &str) {
     let header = response.headers().get(header::AUTHORIZATION);
     assert_eq!(header.is_some(), true);
-    assert_eq!(header.unwrap().to_str().unwrap(), access_token);
+
+    let token = header.unwrap().to_str().unwrap();
+    assert_eq!(token.len() > 0, true);
+
+    assert_token_email(token, email);
 }
 
 /// TO_DO: this works, but feels clunky. Need reworks!
-pub fn assert_access_token_in_cookie(response: &reqwest::Response, access_token: &str) {
+pub fn assert_access_token_in_cookie(response: &reqwest::Response, email: &str) {
     // Assertain that cookie header::AUTHORIZATION is present.
     let mut found: bool = false;
+    let mut token: String = String::from("");
     for c in response.cookies() {
         if c.name() == header::AUTHORIZATION.as_str() {
-            assert_eq!(c.value(), access_token);
+            token = String::from(c.value());
             found = true;
             break;
         }
-    }
+    };
+
     assert_eq!(found, true);
+    assert_eq!(token.len() > 0, true);
+
+    assert_token_email(&token, email);
 }
 
 pub async fn assert_json_successful_login(
     response: reqwest::Response,
-    email: &str,
-    access_token: &str) {
+    email: &str) {
     assert_eq!(response.status(), StatusCode::OK);
 
     let res = response.json::<LoginSuccessResponse>().await;
@@ -185,7 +226,10 @@ pub async fn assert_json_successful_login(
     if let Ok(json_obj) = res {
         assert_eq!(json_obj.api_status.get_code(), http_status_code(StatusCode::OK));
         assert_eq!(json_obj.data.email, email);
-        assert_eq!(json_obj.data.access_token, access_token);
+
+        assert_eq!(json_obj.data.token_type, TOKEN_TYPE);
+
+        assert_token_email(&json_obj.data.access_token, email);
     }        
 }
 
