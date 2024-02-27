@@ -50,9 +50,11 @@ use std::collections::HashMap;
 use actix_web::http::{StatusCode, header};
 
 mod common;
-use common::{spawn_app, make_api_url, make_ui_url};
+use common::{spawn_app, JWT_SECS_VALID_FOR, make_api_url, make_ui_url};
 
 use learn_actix_web::helper::messages::LOGIN_FAILURE_MSG;
+
+// use learn_actix_web::helper::jwt_utils::make_bearer_token;
 
 /// * Route: ``http://localhost:5000/ui/home``
 /// * Method: ``GET``
@@ -65,7 +67,7 @@ async fn get_home_page_html() {
 
     let response = client
         .get(make_ui_url(&test_app.app_url, "/home"))
-        .header(header::AUTHORIZATION, &test_app.mock_access_token())
+        .header(header::AUTHORIZATION, &test_app.mock_access_token(JWT_SECS_VALID_FOR))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -114,10 +116,10 @@ async fn post_login_html() {
         .await
         .expect("Failed to execute request.");
 
-    let access_token = "chirstian.koblick.10004@gmail.com";
+    let email = "chirstian.koblick.10004@gmail.com";
 
-    common::assert_access_token_in_header(&response, access_token);
-    common::assert_access_token_in_cookie(&response, access_token);
+    common::assert_access_token_in_header(&response, email);
+    common::assert_access_token_in_cookie(&response, email);
     common::assert_html_home_page(response).await;
 }
 
@@ -196,14 +198,12 @@ async fn post_login_json() {
         .expect("Failed to execute request.");
 
 
-    let access_token = "saniya.kalloufi.10008@gmail.com";
-
-    common::assert_access_token_in_header(&response, access_token);
-    common::assert_access_token_in_cookie(&response, access_token);    
-
     let email = "saniya.kalloufi.10008@gmail.com";
 
-    common::assert_json_successful_login(response, email, access_token).await;
+    common::assert_access_token_in_header(&response, email);
+    common::assert_access_token_in_cookie(&response, email);
+
+    common::assert_json_successful_login(response, email).await;
 }
 
 /// * Route: ``http://localhost:5000/api/login``
@@ -467,15 +467,18 @@ async fn post_logout_html() {
     params.insert("password", "password");
 
     // Must be in logged in state to test logout.
-    let _ = client
+    let _response = client
         .post(make_api_url(&test_app.app_url, "/login"))
         .form(&params)
         .send()
         .await
         .expect("Failed to execute request.");
 
+    // let token = response.headers().get(header::AUTHORIZATION).unwrap().to_str().unwrap();
+
     let response = client
         .post(make_api_url(&test_app.app_url, "/logout"))
+        // .header(header::AUTHORIZATION, make_bearer_token(token))
         .send()
         .await
         .expect("Failed to execute request.");
