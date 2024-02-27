@@ -57,6 +57,7 @@ pub struct LoginSuccess {
     pub email: String,
     /// The login authentication token.
     pub access_token: String,
+    pub token_type: String,
 }
 
 /// Represents a JSON response of a successful login request.
@@ -234,6 +235,7 @@ pub async fn select_employee(
 mod tests {
     use time::macros::date;
     use super::*;
+    use crate::helper::constants::TOKEN_TYPE;
 
     #[test]
     fn test_employee_serde() {
@@ -282,7 +284,8 @@ mod tests {
     
         let login_success = LoginSuccess {
             email: String::from("behai_nguyen@hotmail.com"),
-            access_token: String::from("abcd-efgh-ijkl-mnop")
+            access_token: String::from("abcd-efgh-ijkl-mnop"),
+            token_type: String::from(TOKEN_TYPE)
         };
 
         let lsr = LoginSuccessResponse {api_status, data: login_success};
