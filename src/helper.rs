@@ -13,3 +13,4 @@ pub mod app_utils;
 pub mod endpoint;
 pub mod messages;
 pub mod jwt_utils;
+pub mod app_logger;
