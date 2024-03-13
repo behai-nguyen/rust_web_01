@@ -86,12 +86,12 @@ where
     /// the message is ``"No employee found"``.
     /// 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("Hi from start. You requested: {}", req.path());
+        tracing::debug!("Hi from start. You requested: {}", req.path());
 
         let last_name: String = req.match_info().get("last_name").unwrap().parse::<String>().unwrap();
         let first_name: String = req.match_info().get("first_name").unwrap().parse::<String>().unwrap();
         
-        println!("Middleware. last name: {}, first name: {}.", last_name, first_name);
+        tracing::debug!("Middleware. last name: {}, first name: {}.", last_name, first_name);
 
         // Retrieve the application state, where the database connection object is.
         let app_state = req.app_data::<Data<AppState>>().cloned().unwrap();
@@ -105,14 +105,14 @@ where
         match query_result.len() {
             // No matched employee.
             0 => {
-                println!("Hi from response -- no employees found.");
+                tracing::debug!("Hi from response -- no employees found.");
 
                 hello_msg = String::from("No employee found");
             },
 
             // There is/are some matched employee(s).
             _ => {
-                println!("Hi from response -- some employees found.");
+                tracing::debug!("Hi from response -- some employees found.");
 
                 let emp = &query_result[0];
 

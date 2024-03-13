@@ -141,7 +141,7 @@ fn extract_access_token(
     // header::AUTHORIZATION. Then the access token will be extracted from this block 
     // of code. 
     if let Some(value) = request.headers().get(header::AUTHORIZATION) {
-        println!("Token extracted from header {}", value.to_str().unwrap());
+        tracing::debug!("Token extracted from header {}", value.to_str().unwrap());
         return Some(String::from(value.to_str().unwrap()));
     }
 
@@ -157,7 +157,7 @@ fn extract_access_token(
     // If we use the HTML client, then the token would be extracted from actix-identity. 
     // I.e., the access token will be extracted from this block of code.
     if let Some(id) = request.get_identity().ok() {
-        println!("Token extracted from identity {}", id.id().unwrap());
+        tracing::debug!("Token extracted from identity {}", id.id().unwrap());
         return Some(String::from(id.id().unwrap()));
     }
 
@@ -285,7 +285,11 @@ where
     dev::forward_ready!(service);
 
     fn call(&self, request: ServiceRequest) -> Self::Future {
-        println!("Auth -- requested path: {}, method: {}; content type: {}", 
+        if let Some(value) = request.cookie("id") {
+            tracing::debug!("Auth -- Id {:#?}", String::from(value.to_string()));
+        }
+
+        tracing::debug!("Auth -- requested path: {}, method: {}; content type: {}", 
             request.path(), request.method(), request.content_type());
 
         let call_request = |req: ServiceRequest| -> Self::Future {

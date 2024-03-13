@@ -47,12 +47,12 @@ pub async fn get_mysql_pool(max_connections: u32, database_url: &str) -> Pool<My
         .await
     {
         Ok(pool) => {
-            println!("🐬 Successfully connected to target MySql server!");
+            tracing::debug!("🐬 Successfully connected to target MySql server!");
             return pool
         }
         Err(err) => {
-            println!("💥 Failed to connect to the target MySql server!");
-            println!("💥 Error: {:?}", err);
+            tracing::debug!("💥 Failed to connect to the target MySql server!");
+            tracing::debug!("💥 Error: {:?}", err);
             std::process::exit(1);
         }
     };
