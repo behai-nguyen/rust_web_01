@@ -9,8 +9,11 @@ use actix_web::http::{StatusCode, header};
 use reqwest::tls::Certificate;
 
 use dotenv::dotenv;
+use time::UtcOffset;
 
-use learn_actix_web::bh_libs::api_status::{self, ApiStatus};
+use tracing_appender::non_blocking::WorkerGuard;
+
+use learn_actix_web::bh_libs::api_status::ApiStatus;
 use learn_actix_web::run;
 use learn_actix_web::models::LoginSuccessResponse;
 use learn_actix_web::helper::endpoint::http_status_code;
@@ -23,6 +26,8 @@ use learn_actix_web::helper::jwt_utils::{
 };
 
 use learn_actix_web::helper::constants::{TOKEN_TYPE, BEARER_TOKEN};
+
+use learn_actix_web::helper::app_logger::init_app_logger;
 
 pub static JWT_SECS_VALID_FOR: u64 = 1800; // 30 minutes.
 
@@ -37,6 +42,7 @@ pub fn jwt_secret_key() -> String {
 
 pub struct TestApp {
     pub app_url: String,
+    pub guard: WorkerGuard,
 }
 
 impl TestApp {
@@ -49,6 +55,30 @@ impl TestApp {
 }
 
 pub async fn spawn_app() -> TestApp {
+    // To load RUST_LOG from .env file.
+    dotenv().ok(); 
+
+    /*
+    On Ubuntu 22.10, calling UtcOffset's offset methods causes IndeterminateOffset error!!
+
+    See also https://github.com/time-rs/time/pull/297
+
+    let now = OffsetDateTime::now_utc();    
+    let res = UtcOffset::local_offset_at(now);
+    if res.is_err() {
+        panic!(">>>>> {:#?}", res);
+    };
+    let utc_offset = res.unwrap();
+    // let utc_offset = UtcOffset::current_local_offset().unwrap();
+    println!("===> utc_offset {:#?}", utc_offset);
+    */
+
+    // TO_DO: 11 is the current number of hours the Australian Eastern Standard Time (AEST)
+    // is ahead of UTC. This value need to be worked out dynamically -- if it is at all 
+    // possible on Linux!!
+    // 
+    let guard = init_app_logger(UtcOffset::from_hms(11, 0, 0).unwrap());
+
     let listener = TcpListener::bind("0.0.0.0:0")
         .expect("Failed to bind random port");
     
@@ -59,7 +89,8 @@ pub async fn spawn_app() -> TestApp {
     let _ = tokio::spawn(server);
 
     TestApp {
-        app_url: format!("https://127.0.0.1:{}", port)
+        app_url: format!("https://127.0.0.1:{}", port),
+        guard
     }
 }
 
