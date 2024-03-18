@@ -110,13 +110,21 @@ git clone -b v0.10.0 https://github.com/behai-nguyen/rust_web_01.git
 
 In the <a href="https://behainguyen.wordpress.com/2024/01/28/rust-simple-actix-web-email-password-login-and-request-authentication-using-middleware/" title="Rust: simple actix-web email-password login and request authentication using middleware." target="_blank">sixth</a> post of our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we implemented a basic email-password login process with a placeholder for a <code>token</code>. In this post, we will implement a comprehensive JSON Web Token (JWT)-based authentication system. We will utilise the <a href="https://docs.rs/jsonwebtoken/latest/jsonwebtoken/index.html" title="jsonwebtoken" target="_blank">jsonwebtoken</a> crate, which we have <a href="https://behainguyen.wordpress.com/2023/11/20/rust-json-web-token-some-investigative-studies-on-crate-jsonwebtoken/" title="Rust: JSON Web Token -- some investigative studies on crate jsonwebtoken" target="_blank">previously studied</a>.
 
-11. [Rust: Actix-web and Daily Logging.](https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/)
+11. [Rust: Actix-web and Daily Logging](https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/)
 
 ```
 git clone -b v0.11.0 https://github.com/behai-nguyen/rust_web_01.git
 ```
 
 Currently, our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application simply prints debug information to the console using the <code>println!</code> macro. In this post, we will implement proper non-blocking daily logging to files. <code>Daily logging</code> entails rotating to a new log file each day. <code>Non-blocking</code> refers to having a dedicated thread for file writing operations. We will utilise the <a href="https://docs.rs/tracing/latest/tracing/index.html" title="tracing" target="_blank">tracing</a>, <a href="https://docs.rs/tracing-appender/latest/tracing_appender/index.html" title="tracing-appender" target="_blank">tracing-appender</a>, and <a href="https://docs.rs/tracing-subscriber/latest/tracing_subscriber/index.html" title="tracing-subscriber" target="_blank">tracing-subscriber</a> crates for our logging implementation.
+
+12. [Rust: Actix-web Daily Logging -- Fix Local Offset, Apply Event Filtering](https://behainguyen.wordpress.com/2024/03/18/rust-actix-web-daily-logging-fix-local-offset-apply-event-filtering/)
+
+```
+git clone -b v0.12.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+In the <a href="https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/#project-layout" title="Rust: Actix-web and Daily Logging" target="_blank">last post</a> of our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we identified two problems. First, there is an issue with calculating the UTC time offset on Ubuntu 22.10, as described in the section <a href="https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/#utcoffset-linux-problem" title="💥 Issue with calculating UTC time offset on Ubuntu 22.10" target="_blank">💥 Issue with calculating UTC time offset on Ubuntu 22.10</a>. Secondly, loggings from other crates that match the logging configuration are also written onto log files, as mentioned in the <a href="https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/#concluding-remarks" title="Concluding Remarks" target="_blank">Concluding Remarks</a> section. We should be able to configure what gets logged. We will address both of these issues in this post.
 
 ## On .env
 
