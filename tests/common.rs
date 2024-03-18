@@ -9,7 +9,6 @@ use actix_web::http::{StatusCode, header};
 use reqwest::tls::Certificate;
 
 use dotenv::dotenv;
-use time::UtcOffset;
 
 use tracing_appender::non_blocking::WorkerGuard;
 
@@ -58,26 +57,7 @@ pub async fn spawn_app() -> TestApp {
     // To load RUST_LOG from .env file.
     dotenv().ok(); 
 
-    /*
-    On Ubuntu 22.10, calling UtcOffset's offset methods causes IndeterminateOffset error!!
-
-    See also https://github.com/time-rs/time/pull/297
-
-    let now = OffsetDateTime::now_utc();    
-    let res = UtcOffset::local_offset_at(now);
-    if res.is_err() {
-        panic!(">>>>> {:#?}", res);
-    };
-    let utc_offset = res.unwrap();
-    // let utc_offset = UtcOffset::current_local_offset().unwrap();
-    println!("===> utc_offset {:#?}", utc_offset);
-    */
-
-    // TO_DO: 11 is the current number of hours the Australian Eastern Standard Time (AEST)
-    // is ahead of UTC. This value need to be worked out dynamically -- if it is at all 
-    // possible on Linux!!
-    // 
-    let guard = init_app_logger(UtcOffset::from_hms(11, 0, 0).unwrap());
+    let guard = init_app_logger();
 
     let listener = TcpListener::bind("0.0.0.0:0")
         .expect("Failed to bind random port");
