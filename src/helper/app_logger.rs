@@ -2,16 +2,14 @@
 
 //! The application logger.
 
-use std::str::FromStr;
-
 use time::macros::format_description;
-use tracing::Level;
+use time_tz::OffsetDateTimeExt;
+
 use tracing_appender::{non_blocking::WorkerGuard, rolling::{RollingFileAppender, Rotation}};
-use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 use tracing_subscriber::{
-    fmt::{time::OffsetTime, Layer},
-    layer::SubscriberExt,
+    fmt::{time::OffsetTime, Layer, writer::MakeWriterExt}, 
+    EnvFilter, layer::{SubscriberExt, Layer as _}
 };
 
 // TRACE, DEBUG, INFO, WARN, ERROR.
@@ -39,28 +37,58 @@ use tracing_subscriber::{
 
 /// Setting up the application logger.
 /// 
-/// # Arguments
+/// # Note on Local Time Offset Calculating
 /// 
-/// * `utc_offset` - local date time offsetto UTC. The Australian Eastern Standard Time (AEST)
-/// is between 10 and 11 hours ahead of UTC. The value of ``utc_offset`` is 10 or 11.
+/// Please note this block of the code:
 /// 
-/// Calculating this offset with ``UtcOffset::current_local_offset().unwrap()`` raises 
+/// ```text
+///     // Each log line starts with a local date and time token.
+///     let system_tz = time_tz::system::get_timezone()
+///         .expect("Failed to find system timezone");
+///     let localtime = time::OffsetDateTime::now_utc().to_timezone(system_tz);
+/// 
+///     let timer = OffsetTime::new(
+///         localtime.offset(),
+///         format_description!("[year]-[month]-[day]-[hour]:[minute]:[second]"),
+///     );
+/// ```
+/// 
+/// Originally `localtime.offset()` was ``UtcOffset::current_local_offset().unwrap()``.
+/// 
+/// ``UtcOffset::current_local_offset().unwrap()`` raises 
 /// [IndeterminateOffset](https://docs.rs/time/latest/time/error/struct.IndeterminateOffset.html) 
 /// error. 
 /// 
-/// See also [Document #293 in local-offset feature description #297](https://github.com/time-rs/time/pull/297).
+/// According to this GitHub issue on Dec 19, 2020, 
+/// [Document #293 in local-offset feature description #297](https://github.com/time-rs/time/pull/297),
+/// this problem has not been fixed.
+/// 
+/// See also the following issues:
+/// 
+/// * Nov 25, 2020 -- [Time 0.2.23 fails to determine local offset #296](https://github.com/time-rs/time/issues/296).
+/// 
+/// * Nov 2, 2021 -- [Better solution for getting local offset on unix #380](https://github.com/time-rs/time/issues/380).
+/// 
+/// * Dec 5, 2019 -- [tzdb support #193](https://github.com/time-rs/time/issues/193). 
+///   [This reply](https://github.com/time-rs/time/issues/193#issuecomment-1037227056) on Feb 13, 2022
+///   points to crate [time-tz](https://crates.io/crates/time-tz), which solves the above error.
 /// 
 /// # Return
 /// 
 /// - [WorkerGuard](https://docs.rs/tracing-appender/latest/tracing_appender/non_blocking/struct.WorkerGuard.html).
 ///     This guard must be kept alive during the live of the application server for the log to work.
 /// 
-/// # Note
+/// # Note on ``RUST_LOG`` Environment Variable
 /// 
-/// Without ``log_appender.with_max_level(level)`` the logging would not work correctly. That is, 
-/// having only ``RUST_LOG=error`` in the ``.env`` file does seem not enough.
+/// Please see [Enabling logging](https://docs.rs/env_logger/latest/env_logger/#enabling-logging).
 /// 
-pub fn init_app_logger(utc_offset: time::UtcOffset) -> WorkerGuard {
+/// In the context of this application, some example of valid configurations are:
+/// 
+/// * ``RUST_LOG=off,learn_actix_web=debug``
+/// * ``RUST_LOG=off,learn_actix_web=info`` -- nothing will get log.
+/// * ``RUST_LOG=off,learn_actix_web=debug,actix_server=info``
+/// 
+pub fn init_app_logger() -> WorkerGuard {
     let log_appender = RollingFileAppender::builder()
         .rotation(Rotation::DAILY) // Daily log file.
         .filename_suffix("log") // log file names will be suffixed with `.log`
@@ -70,39 +98,27 @@ pub fn init_app_logger(utc_offset: time::UtcOffset) -> WorkerGuard {
     let (non_blocking_appender, log_guard) = tracing_appender::non_blocking(log_appender);
 
     // Each log line starts with a local date and time token.
-    // 
-    // On Ubuntu 22.10, calling UtcOffset::current_local_offset().unwrap() after non_blocking()
-    // causes IndeterminateOffset error!!
-    // 
-    // See also https://github.com/time-rs/time/pull/297.
-    //
-    let timer = OffsetTime::new(
-        //UtcOffset::current_local_offset().unwrap(),
-        utc_offset,
-        format_description!("[year]-[month]-[day]-[hour]:[minute]:[second]"),
-    );
-    
-    // Extracts tracing::Level from .env RUST_LOG, if there is any problem, 
-    // defaults to Level::DEBUG.
-    //
-    let level: Level = match std::env::var_os("RUST_LOG") {
-        None => Level::DEBUG,
+    let system_tz = time_tz::system::get_timezone()
+        .expect("Failed to find system timezone");
+    let localtime = time::OffsetDateTime::now_utc().to_timezone(system_tz);
 
-        Some(text) => {
-            match Level::from_str(text.to_str().unwrap()) {
-                Ok(val) => val,
-                Err(_) => Level::DEBUG
-            }
-        }
-    };
+    let timer = OffsetTime::new(
+        localtime.offset(),
+        format_description!("[year]-[month]-[day] [hour]:[minute]:[second]"),
+    );
+
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("debug"))
+        .unwrap();
 
     let subscriber = tracing_subscriber::registry()
         .with(
             Layer::new()
                 .with_timer(timer)
                 .with_ansi(false)
-                .with_writer(non_blocking_appender.with_max_level(level)
-                    .and(std::io::stdout.with_max_level(level)))
+                .with_writer(non_blocking_appender
+                    .and(std::io::stdout))
+                .with_filter(filter_layer)
         );
 
     // tracing::subscriber::set_global_default(subscriber) can only be called once. 
@@ -114,8 +130,6 @@ pub fn init_app_logger(utc_offset: time::UtcOffset) -> WorkerGuard {
         Err(err) => tracing::error!("Logger set_global_default, ignored: {}", err),
         _ => (),
     }
-
-    tracing::debug!("RUST_LOG level {}", level);
 
     log_guard
 }
