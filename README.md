@@ -126,6 +126,14 @@ git clone -b v0.12.0 https://github.com/behai-nguyen/rust_web_01.git
 
 In the <a href="https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/#project-layout" title="Rust: Actix-web and Daily Logging" target="_blank">last post</a> of our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we identified two problems. First, there is an issue with calculating the UTC time offset on Ubuntu 22.10, as described in the section <a href="https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/#utcoffset-linux-problem" title="💥 Issue with calculating UTC time offset on Ubuntu 22.10" target="_blank">💥 Issue with calculating UTC time offset on Ubuntu 22.10</a>. Secondly, loggings from other crates that match the logging configuration are also written onto log files, as mentioned in the <a href="https://behainguyen.wordpress.com/2024/03/13/rust-actix-web-and-daily-logging/#concluding-remarks" title="Concluding Remarks" target="_blank">Concluding Remarks</a> section. We should be able to configure what gets logged. We will address both of these issues in this post.
 
+13. [Rust: Actix-web -- Async Functions as Middlewares](https://behainguyen.wordpress.com/2024/03/20/rust-actix-web-async-functions-as-middlewares/)
+
+```
+git clone -b v0.13.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+In the <a href="https://behainguyen.wordpress.com/2024/02/26/rust-actix-web-json-web-token-authentication/" title="Rust: actix-web JSON Web Token authentication" target="_blank">tenth</a> post of our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we added an ad hoc middleware. In this post, with the assistance of the <a href="https://docs.rs/actix-web-lab/latest/actix_web_lab/index.html" title="actix-web-lab" target="_blank">actix-web-lab</a> crate, we will refactor this ad hoc middleware into a standalone <code>async</code> function to enhance the overall code readability.
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
