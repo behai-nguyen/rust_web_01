@@ -134,6 +134,16 @@ git clone -b v0.13.0 https://github.com/behai-nguyen/rust_web_01.git
 
 In the <a href="https://behainguyen.wordpress.com/2024/02/26/rust-actix-web-json-web-token-authentication/" title="Rust: actix-web JSON Web Token authentication" target="_blank">tenth</a> post of our <a href="https://docs.rs/actix-web/latest/actix_web/" title="actix-web" target="_blank">actix-web</a> learning application, we added an ad hoc middleware. In this post, with the assistance of the <a href="https://docs.rs/actix-web-lab/latest/actix_web_lab/index.html" title="actix-web-lab" target="_blank">actix-web-lab</a> crate, we will refactor this ad hoc middleware into a standalone <code>async</code> function to enhance the overall code readability.
 
+14. [Work In Progress: revision 14](https://github.com/behai-nguyen/rust_web_01/blob/main/src/wip/revision_014.md)
+
+```
+git clone -b v0.14.0 https://github.com/behai-nguyen/rust_web_01.git
+```
+
+Attempt to group log entries for each request within the markers ``Request [no session Id] entry`` and ``Request [no session Id] exit``, or ``Request <Uuid V4> entry`` and ``Request <Uuid V4> exit``.
+
+💥 However, this revision of the code has not quite been able to achieve that.
+
 ## On .env
 
 I understand it should not be checked in. But this is only a development project, I checked it in for the shake of completeness.
