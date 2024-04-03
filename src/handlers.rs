@@ -269,6 +269,7 @@ pub async fn employees_html2(
 /// [ApiStatus](`crate::bh_libs::api_status::ApiStatus`).
 /// 
 pub async fn hi_first_employee_found(msg: Option<ReqData<Msg>>) -> impl Responder {
+    tracing::debug!("I am pub async fn hi_first_employee_found(...)");
     match msg {
         None => return HttpResponse::InternalServerError().body("No message found."),
 
