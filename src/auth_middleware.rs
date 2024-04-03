@@ -59,7 +59,7 @@ use std::future::{ready, Ready};
 
 use actix_web::{
     body::EitherBody, dev::{self, Service, ServiceRequest, ServiceResponse, Transform}, 
-    http::header, web::Data, Error, HttpMessage, HttpResponse, 
+    http::{header, StatusCode}, web::Data, Error, HttpMessage, HttpResponse,
 };
 
 use futures_util::future::LocalBoxFuture;
@@ -69,8 +69,6 @@ use actix_identity::{IdentityExt, Identity};
 use crate::{bh_libs::api_status::ApiStatus, helper::app_utils::{
     build_login_redirect_cookie,
     build_original_content_type_cookie,
-    remove_login_redirect_cookie,
-    remove_original_content_type_cookie
 }};
 
 use crate::helper::messages::UNAUTHORISED_ACCESS_MSG;
@@ -80,6 +78,12 @@ use crate::helper::jwt_utils::{
     JWTPayload, decode_bearer_token, 
     make_token_from_payload, make_bearer_token
 };
+
+#[derive(Clone, Debug)]
+pub struct ResponseErrorStatus {
+    pub code: StatusCode,
+    pub body: ApiStatus,
+}
 
 /// The "status" of the token. Might be use another name?
 /// Both ``payload`` and ``api_status`` can be None. But otherwise they are
@@ -133,7 +137,7 @@ struct TokenStatus {
 /// 
 /// * Optionally the access token as string if found.
 /// 
-fn extract_access_token(
+pub fn extract_access_token(
     request: &ServiceRequest
 ) -> Option<String> {
     // If we use a client, such as Testfully, after logged in, we must remember the 
@@ -141,6 +145,7 @@ fn extract_access_token(
     // header::AUTHORIZATION. Then the access token will be extracted from this block 
     // of code. 
     if let Some(value) = request.headers().get(header::AUTHORIZATION) {
+        // TO_DO: This logging falls out of <Request Uuid entry>...<Request Uuid exit>.
         tracing::debug!("Token extracted from header {}", value.to_str().unwrap());
         return Some(String::from(value.to_str().unwrap()));
     }
@@ -157,6 +162,7 @@ fn extract_access_token(
     // If we use the HTML client, then the token would be extracted from actix-identity. 
     // I.e., the access token will be extracted from this block of code.
     if let Some(id) = request.get_identity().ok() {
+        // TO_DO: This logging falls out of <Request Uuid entry>...<Request Uuid exit>.
         tracing::debug!("Token extracted from identity {}", id.id().unwrap());
         return Some(String::from(id.id().unwrap()));
     }
@@ -191,7 +197,7 @@ fn verify_valid_access_token(
 
     // Decode the access token to verify validity.
     // res.unwrap() -- the actual access token as a string.
-    let res = decode_bearer_token(&res.unwrap(), app_state.cfg.jwt_secret_key.as_ref());
+    let res = decode_bearer_token(&res.unwrap(), app_state.cfg.jwt_secret_key.as_ref(), None);
 
     if res.is_ok() {
         // Token is valid and not expired.
@@ -330,20 +336,16 @@ where
             redirect_to_route(req, "/ui/home")
         };
 
-        // This closure just return a 401 response to the clients. The body of the response
-        // is the JSON serialisation of api_status: ApiStatus.
+        // Return a 401 error. Attaches an instance of ApiStatus to request extension 
+        // and forward the request on.
         let unauthorised_token = |req: ServiceRequest, api_status: ApiStatus| -> Self::Future {
-            let (request, _pl) = req.into_parts();
+            req.extensions_mut().insert(ResponseErrorStatus {
+                code: StatusCode::UNAUTHORIZED,
+                body: api_status.clone(),
+            });
 
-            let response = HttpResponse::Unauthorized()
-                .insert_header((header::CONTENT_TYPE, header::ContentType::json()))
-                .cookie(remove_login_redirect_cookie())
-                .cookie(remove_original_content_type_cookie())            
-                .body(serde_json::to_string(&api_status).unwrap())
-                .map_into_right_body();
-
-            Box::pin(async { Ok(ServiceResponse::new(request, response)) })
-        };        
+            call_request(req)
+        };
 
         // TO_DO: Windows IIS! This feels like a hack, I'm not sure how to handle this.
         // Or this is even correct. Please be careful.
