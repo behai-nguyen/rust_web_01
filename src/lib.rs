@@ -10,6 +10,7 @@ use sqlx::{Pool, MySql};
 use actix_web::{
     dev::{ServiceRequest, ServiceResponse, Server}, Error, HttpMessage, error, 
     cookie::{Key, SameSite}, http::{header, StatusCode}, web, App, HttpServer,
+    HttpResponse, body::MessageBody,
 };
 
 use actix_web_lab::middleware::{from_fn, Next};
@@ -32,12 +33,14 @@ pub mod middleware;
 pub mod auth_middleware;
 pub mod auth_handlers;
 
-use crate::helper::app_utils::{
+use crate::helper::{app_utils::{
     make_api_status_response,
-    build_authorization_cookie,
+    build_authorization_cookie,    
+    remove_login_redirect_cookie,
+    remove_original_content_type_cookie},
+    jwt_utils,
+    messages::TOKEN_STR_JWT_MSG,
 };
-
-use crate::helper::messages::TOKEN_STR_JWT_MSG;
 
 pub struct AppState {
     db: Pool<MySql>,
@@ -140,40 +143,130 @@ fn form_config() -> web::FormConfig {
         })
 }
 
+/// Attempts to extract session Id from the JWT payload.
+/// If not exists yet, return "[no session Id]" instead.
+/// 
+/// # Arguments
+/// 
+/// * `ServiceRequest` - where the JWT token and [`AppState`] struct are.
+/// 
+/// # Return
+///
+/// * Extracted UUid session Id if exists. Otherwise "[no session Id]".
+/// 
+fn extract_session_id(
+    req: &ServiceRequest) -> String {
+    // Retrieve the application state, where the config object is.
+    let app_state = req.app_data::<web::Data<AppState>>().cloned().unwrap();
+
+    match auth_middleware::extract_access_token(&req) {
+        Some(token) => {
+            // Expired token is okay. We just want to extract the payload session Id.
+            let jwt_payload = jwt_utils::decode_bearer_token(&token, app_state.cfg.jwt_secret_key.as_ref(), Some(false));
+
+            // NOTE: this could fail due invalid JWT hard coded in integration tests!
+            if jwt_payload.is_ok() {
+                jwt_payload.unwrap().session_id().clone()
+            }
+            else {
+                String::from("[no session Id, invalid JWT]")
+            }
+        }
+        _ => String::from("[no session Id]"),
+    }
+}
+
 /// Standalone, async middleware function.
 /// 
 /// References:
 ///     * [wrap_fn &AppRouting should use Arc<AppRouting> #2681](https://github.com/actix/actix-web/issues/2681)
 ///     * [Crate actix_web_lab](https://docs.rs/actix-web-lab/latest/actix_web_lab/index.html)
 ///     * [actix-web-lab/actix-web-lab/examples/from_fn.rs](https://github.com/robjtede/actix-web-lab/blob/7f5ce616f063b0735fb423a441de7da872847c5c/actix-web-lab/examples/from_fn.rs)
+///       Based on ``async fn mw_cb(...)`` of the above ``from_fn.rs``.
 /// 
-/// This adhoc middleware looks for the updated access token String attachment in 
-/// the request extension, if there is one, extracts it and sends it to the client 
-/// via both the ``authorization`` header and cookie.
+/// See also:
+///     * [``users.rust-lang.org`` -- Actix-web / actix-web-lab, compiler gives error when in else block, please help](https://users.rust-lang.org/t/actix-web-actix-web-lab-compiler-gives-error-when-in-else-block-please-help/108925)
 /// 
-async fn update_return_jwt<B>(req: ServiceRequest, next: Next<B>) -> Result<ServiceResponse<B>, Error> {
+/// This function is responsible for the followings:
+/// 
+/// 1. If the request has been successfully completed, it looks for the updated access 
+/// token String attachment in the request extension, if there is one, extracts it and 
+/// forward it to the client via both the ``authorization`` header and cookie with the
+/// returned response.
+/// 
+/// 2. If the request has not been successfully completed, translates the error struct 
+/// attached in the request extension into a JSON serialisation response and forwards 
+/// this new (mutated) response to the client.
+/// 
+async fn finalise_request(
+    req: ServiceRequest,
+    next: Next<impl MessageBody + 'static>,
+) -> Result<ServiceResponse<impl MessageBody>, Error> {
     let mut updated_access_token: Option<String> = None;
-
     // Get set in src/auth_middleware.rs's 
     // fn update_and_set_updated_token(request: &ServiceRequest, token_status: TokenStatus).
     if let Some(token) = req.extensions_mut().get::<String>() {
         updated_access_token = Some(token.to_string());
     }
 
-    let mut res = next.call(req).await?;
+    let mut resp_error_status: Option<auth_middleware::ResponseErrorStatus> = None;
+    if let Some(resp_err_stt) = req.extensions_mut().get::<auth_middleware::ResponseErrorStatus>() {
+        resp_error_status = Some(resp_err_stt.clone());
+    }
 
-    if updated_access_token.is_some() {
-        let token = updated_access_token.unwrap();
-        res.headers_mut().append(
-            header::AUTHORIZATION, 
-            header::HeaderValue::from_str(token.as_str()).expect(TOKEN_STR_JWT_MSG)
-        );
+    let session_id = extract_session_id(&req);
 
-        let _ = res.response_mut().add_cookie(
-            &build_authorization_cookie(&token));
-    };
+    // No error comming out of auth_middleware.
+    if resp_error_status.is_some() {
+        let err_status = resp_error_status.unwrap();
 
-    Ok(res)
+        tracing::debug!("Requested failed. Returning error status.");
+
+        tracing::info!("Request {} exit", session_id);
+
+        Ok(req.into_response(//HttpResponse::Unauthorized()
+            HttpResponse::Ok()
+                .status(err_status.code)
+                .insert_header((header::CONTENT_TYPE, header::ContentType::json()))
+                .cookie(remove_login_redirect_cookie())
+                .cookie(remove_original_content_type_cookie())
+                .body(serde_json::to_string(&err_status.body).unwrap())        
+        ).map_into_right_body())
+    }    
+    else {
+        let mut res = next.call(req).await?;
+
+        if updated_access_token.is_some() {
+            let token = updated_access_token.unwrap();
+
+            res.headers_mut().append(
+                header::AUTHORIZATION, 
+                header::HeaderValue::from_str(token.as_str()).expect(TOKEN_STR_JWT_MSG)            
+            );
+    
+            let _ = res.response_mut().add_cookie(
+                &build_authorization_cookie(&token));
+    
+            tracing::debug!("Requested succeeded. Returning updated access token.");    
+        }
+
+        tracing::info!("Request {} exit", session_id);
+
+        Ok(res.map_into_left_body())
+    }
+}
+
+/// Standalone, async middleware function.
+/// 
+/// Mark the start of a new request.
+/// Attempts to extract session Id from the JWT payload and logs it.
+/// If not exists yet, logs "[no session Id]" instead.
+async fn log_request_entry<B>(
+    req: ServiceRequest, 
+    next: Next<B>) -> Result<ServiceResponse<B>, Error> {
+    tracing::info!("Request {} entry", extract_session_id(&req));
+    
+    next.call(req).await
 }
 
 /// The application HTTP server.
@@ -199,8 +292,9 @@ pub async fn run(listener: TcpListener) -> Result<Server, std::io::Error> {
             }))
             .app_data(json_config())
             .app_data(form_config())
-            .wrap(from_fn(update_return_jwt))
+            .wrap(from_fn(finalise_request))
             .wrap(auth_middleware::CheckLogin)
+            .wrap(from_fn(log_request_entry))
             .wrap(IdentityMiddleware::default())
             .wrap(SessionMiddleware::builder(
                     redis_store.clone(),
