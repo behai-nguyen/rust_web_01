@@ -36,6 +36,7 @@ actix-identity = "0.6.0"
 argon2 = "0.5"
 
 jsonwebtoken = "9.2"
+uuid = {version = "1.8", features = ["v4"]}
 
 tracing = "0.1"
 tracing-appender = "0.2"
