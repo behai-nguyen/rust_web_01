@@ -11,6 +11,8 @@ use jsonwebtoken::{get_current_timestamp, encode, Algorithm, Header,
     EncodingKey, decode, DecodingKey, Validation, errors::ErrorKind
 };
 
+use uuid::Uuid;
+
 use actix_web::http::StatusCode;
 
 use crate::bh_libs::api_status::ApiStatus;
@@ -27,6 +29,8 @@ use crate::helper::constants::BEARER_TOKEN;
 pub struct JWTPayload {
     /// Custom field. The logged in user email. 
     email: String,
+    /// Custom field. Uuid V4 unique Id for this authenticated session.
+    session_id: String,
     /// Standard field. Its value stays fixed.
     iat: u64, 
     /// Standard field. A required field. For this implementation, its value gets 
@@ -80,6 +84,7 @@ impl JWTPayload {
 
         Self {
             email: String::from(email),
+            session_id: Uuid::new_v4().to_string(),
             iat,
             exp: iat + secs_valid_for,
             last_active: iat,
@@ -152,6 +157,16 @@ impl JWTPayload {
     pub fn email(&self) -> String {
         self.email.clone()
     }
+
+    /// Gets a [`JWTPayload`] instance session_id.
+    /// 
+    /// # Return 
+    ///
+    /// * [`JWTPayload`] instance session_id.
+    ///
+    pub fn session_id(&self) -> String {
+        self.session_id.clone()
+    }    
 
     /// Gets a [`JWTPayload`] instance issued at.
     /// 
@@ -283,12 +298,14 @@ pub fn make_bearer_token(token: &str) -> String {
 /// 
 pub fn decode_token(
     token: &str,
-    secret_key: &[u8]
+    secret_key: &[u8],
+    validate_exp: Option<bool>,
 ) -> Result<JWTPayload, ApiStatus> {
     let mut validation = Validation::new(Algorithm::HS256);
     // For the shake of simplicity, 0 would make leeway not having any effect
     // on expiration calculations.
     validation.leeway = 0;
+    validation.validate_exp = validate_exp.unwrap_or(true);
 
     match decode::<JWTPayload>(token, 
         &DecodingKey::from_secret(secret_key), &validation) {
@@ -330,9 +347,10 @@ pub fn decode_token(
 ///
 pub fn decode_bearer_token(
     token: &str,
-    secret_key: &[u8]
+    secret_key: &[u8],
+    validate_exp: Option<bool>,
 ) -> Result<JWTPayload, ApiStatus> {
-    decode_token(&token.split_at(7).1.to_string(), secret_key)
+    decode_token(&token.split_at(7).1.to_string(), secret_key, validate_exp)
 }
 
 /// To run these tests below:
@@ -357,9 +375,28 @@ mod tests {
     use dotenv::dotenv;
     use crate::config::Config;
 
+    /// Verify valid syntax Uuid V4.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `session_id` - Uuid V4 session Id.
+    ///    It should look like: ``dde5c4a9-eed4-4273-a160-150204d5e521``,
+    ///    ``67e55044-10b1-426f-9247-bb680e5fe0c8``.
+    fn verify_session_id(session_id: String) {
+        assert_eq!(session_id.len(), 36);
+
+        let comps = session_id.split("-").collect::<Vec<&str>>();
+        assert_eq!(comps.len(), 5);
+        assert_eq!(comps[0].len(), 8);
+        assert_eq!(comps[1].len(), 4);
+        assert_eq!(comps[2].len(), 4);
+        assert_eq!(comps[3].len(), 4);
+        assert_eq!(comps[4].len(), 12);        
+    }
+
     #[test]
     fn test_update_expiry_secs() {
-        let mut jwt_pay_load = JWTPayload::new("behai_nguyen@hotmail.com", 45);
+        let mut jwt_payload = JWTPayload::new("behai_nguyen@hotmail.com", 45);
 
         // Wait for two seconds.
         let sleep_time = std::time::Duration::from_secs(2);
@@ -367,15 +404,15 @@ mod tests {
 
         let sec_since_epoch = seconds_since_epoch();
 
-        jwt_pay_load = jwt_pay_load.update_expiry_secs(30);
+        jwt_payload = jwt_payload.update_expiry_secs(30);
 
-        assert_eq!((jwt_pay_load.expiry() - sec_since_epoch) <= 30, true);
-        assert_eq!(jwt_pay_load.last_active() >= sec_since_epoch, true);
+        assert_eq!((jwt_payload.expiry() - sec_since_epoch) <= 30, true);
+        assert_eq!(jwt_payload.last_active() >= sec_since_epoch, true);
     }
 
     #[test]
     fn test_update_expiry_mins() {
-        let mut jwt_pay_load = JWTPayload::new("behai_nguyen@hotmail.com", 45);
+        let mut jwt_payload = JWTPayload::new("behai_nguyen@hotmail.com", 45);
 
         // Wait for two seconds.
         let sleep_time = std::time::Duration::from_secs(2);
@@ -383,15 +420,15 @@ mod tests {
 
         let sec_since_epoch = seconds_since_epoch();
 
-        jwt_pay_load = jwt_pay_load.update_expiry_mins(1);
+        jwt_payload = jwt_payload.update_expiry_mins(1);
 
-        assert_eq!((jwt_pay_load.expiry() - sec_since_epoch) <= 60, true);
-        assert_eq!(jwt_pay_load.last_active() >= sec_since_epoch, true);
+        assert_eq!((jwt_payload.expiry() - sec_since_epoch) <= 60, true);
+        assert_eq!(jwt_payload.last_active() >= sec_since_epoch, true);
     }
 
     #[test]
     fn test_update_expiry_hours() {
-        let mut jwt_pay_load = JWTPayload::new("behai_nguyen@hotmail.com", 45);
+        let mut jwt_payload = JWTPayload::new("behai_nguyen@hotmail.com", 45);
 
         // Wait for two seconds.
         let sleep_time = std::time::Duration::from_secs(2);
@@ -399,10 +436,10 @@ mod tests {
 
         let sec_since_epoch = seconds_since_epoch();
 
-        jwt_pay_load = jwt_pay_load.update_expiry_hours(1);
+        jwt_payload = jwt_payload.update_expiry_hours(1);
 
-        assert_eq!((jwt_pay_load.expiry() - sec_since_epoch) <= 3600, true);
-        assert_eq!(jwt_pay_load.last_active() >= sec_since_epoch, true);
+        assert_eq!((jwt_payload.expiry() - sec_since_epoch) <= 3600, true);
+        assert_eq!(jwt_payload.last_active() >= sec_since_epoch, true);
     }
 
     #[test]
@@ -416,14 +453,16 @@ mod tests {
             config.jwt_secret_key.as_ref(), config.jwt_mins_valid_for * 60);
         assert_eq!(token.len() > 0, true);
 
-        let jwt_pay_load = match decode::<JWTPayload>(&token, 
+        let jwt_payload = match decode::<JWTPayload>(&token, 
             &DecodingKey::from_secret(config.jwt_secret_key.as_ref()), 
             &Validation::new(Algorithm::HS256)) {
                 Ok(x) => x.claims,
                 Err(_) => panic!("Token decoded failed."),
         };
 
-        assert_eq!(jwt_pay_load.email(), email);
+        assert_eq!(jwt_payload.email(), email);
+
+        verify_session_id(jwt_payload.session_id().clone());
     }
 
     #[test]
@@ -433,9 +472,9 @@ mod tests {
 
         let email = "behai_nguyen@hotmail.com";
 
-        let jwt_pay_load = JWTPayload::new(email, 45);
+        let jwt_payload = JWTPayload::new(email, 45);
 
-        let token = make_token_from_payload(&jwt_pay_load, config.jwt_secret_key.as_ref());
+        let token = make_token_from_payload(&jwt_payload, config.jwt_secret_key.as_ref());
         assert_eq!(token.len() > 0, true);
         
         let jwt_pay_load1 = match decode::<JWTPayload>(&token, 
@@ -445,7 +484,9 @@ mod tests {
                 Err(_) => panic!("Token decoded failed."),
         };
 
-        assert_eq!(jwt_pay_load1.email(), email);        
+        assert_eq!(jwt_pay_load1.email(), email);
+
+        verify_session_id(jwt_payload.session_id().clone());
     }
 
     #[test]
@@ -458,12 +499,14 @@ mod tests {
         let token = make_token(email, config.jwt_secret_key.as_ref(), 5);
         assert_eq!(token.len() > 0, true);
 
-        let res = decode_token(&token, config.jwt_secret_key.as_ref());
+        let res = decode_token(&token, config.jwt_secret_key.as_ref(), None);
         // Token should be decoded successfully.
         assert_eq!(res.is_ok(), true);
-        let jwt_pay_load = res.unwrap();
+        let jwt_payload = res.unwrap();
 
-        assert_eq!(jwt_pay_load.email(), email);
+        assert_eq!(jwt_payload.email(), email);
+
+        verify_session_id(jwt_payload.session_id().clone());
     }
 
     #[test]
@@ -476,12 +519,14 @@ mod tests {
         let token = make_bearer_token( &make_token(email, config.jwt_secret_key.as_ref(), 5) );
         assert_eq!(token.len() > 0, true);
 
-        let res = decode_bearer_token(&token, config.jwt_secret_key.as_ref());
+        let res = decode_bearer_token(&token, config.jwt_secret_key.as_ref(), None);
         // Token should be decoded successfully.
         assert_eq!(res.is_ok(), true);
-        let jwt_pay_load = res.unwrap();
+        let jwt_payload = res.unwrap();
 
-        assert_eq!(jwt_pay_load.email(), email);
+        assert_eq!(jwt_payload.email(), email);
+        
+        verify_session_id(jwt_payload.session_id().clone());
     }
 
     #[test]
@@ -498,7 +543,7 @@ mod tests {
         let sleep_time = std::time::Duration::from_secs(7);
         std::thread::sleep(sleep_time);
 
-        let res = decode_token(&token, config.jwt_secret_key.as_ref());
+        let res = decode_token(&token, config.jwt_secret_key.as_ref(), None);
 
         // Token decoded results in error.
         assert_eq!(res.is_err(), true);
@@ -515,7 +560,7 @@ mod tests {
 
         let token = "behai_nguyen@hotmail.com";
 
-        let res = decode_token(&token, config.jwt_secret_key.as_ref());
+        let res = decode_token(&token, config.jwt_secret_key.as_ref(), None);
 
         // Token decoded results in error.
         assert_eq!(res.is_err(), true);
