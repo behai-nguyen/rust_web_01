@@ -189,7 +189,7 @@ pub async fn assert_html_login_page(response: reqwest::Response) {
 }
 
 pub fn assert_token_email(token: &str, email: &str) {
-    let res = decode_token(token, jwt_secret_key().as_ref());
+    let res = decode_token(token, jwt_secret_key().as_ref(), None);
     assert_eq!(res.is_ok(), true);
 
     let api_status = res.unwrap();

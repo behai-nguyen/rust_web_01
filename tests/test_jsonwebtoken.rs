@@ -251,13 +251,13 @@ async fn token_update_sequence() {
     assert_ne!(token_2, token_3, "token_2, token_3 should be different.");
 
     // Assert that all tokens are still valid.
-    let res1 = decode_token(&token_1, jwt_secret_key().as_ref());
+    let res1 = decode_token(&token_1, jwt_secret_key().as_ref(), None);
     assert_eq!(res1.is_ok(), true, "Decode token_1");
 
-    let res2 = decode_token(&token_2, jwt_secret_key().as_ref());
+    let res2 = decode_token(&token_2, jwt_secret_key().as_ref(), None);
     assert_eq!(res2.is_ok(), true, "Decode token_2");
 
-    let res3 = decode_token(&token_3, jwt_secret_key().as_ref());
+    let res3 = decode_token(&token_3, jwt_secret_key().as_ref(), None);
     assert_eq!(res3.is_ok(), true, "Decode token_3");
 
     // Extract tokens' payloads and check payloads data.
